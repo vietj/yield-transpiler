@@ -15,6 +15,10 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import javax.tools.Diagnostic;
+import javax.tools.JavaFileObject;
+import java.io.IOException;
+import java.io.Writer;
 import java.util.Collections;
 import java.util.Set;
 
@@ -36,13 +40,13 @@ public class Processor extends AbstractProcessor {
 
   @Override
   public Set<String> getSupportedAnnotationTypes() {
-    return Collections.singleton(Sync.class.getName());
+    return Collections.singleton(Generator.class.getName());
   }
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
 
-    for (Element elt : roundEnv.getElementsAnnotatedWith(Sync.class)) {
+    for (Element elt : roundEnv.getElementsAnnotatedWith(Generator.class)) {
       process((ExecutableElement) elt);
     }
 
@@ -55,7 +59,17 @@ public class Processor extends AbstractProcessor {
     attributeClass(typeElt);
     TreePath path = trees.getPath(methodElt);
     TreeAnalyzer analyzer = new TreeAnalyzer();
-    analyzer.scan(path, null);
+    path.getCompilationUnit().getImports().forEach(import_ -> analyzer.visitImport(import_, null));
+    String source = (String)analyzer.scan(path, null);
+    try {
+      JavaFileObject generator = processingEnv.getFiler().createSourceFile("GeneratorImpl", methodElt);
+      try (Writer writer = generator.openWriter()) {
+        writer.write(source);
+      }
+    } catch (IOException e) {
+      e.printStackTrace();
+      processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Coult not compile");
+    }
   }
 
   private void attributeClass(Element classElement) {

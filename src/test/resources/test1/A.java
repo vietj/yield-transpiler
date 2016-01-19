@@ -1,19 +1,16 @@
 package test1;
 
 import synctest.Helper;
-import synctest.Sync;
+import synctest.Generator;
+import synctest.SyncTest;
 
 import java.util.function.Consumer;
 
 public class A {
-
-  @Sync
+  @Generator
   public void sync() {
-    String result = Helper.awaitResult(c -> blocking(c));
-    System.out.println(result);
-  }
-
-  public void blocking(Consumer<String> callback) {
-    callback.accept("something");
+    SyncTest.value = "foo";
+    Helper.yield();
+    SyncTest.value = "bar";
   }
 }
