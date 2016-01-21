@@ -2,6 +2,7 @@ package synctest;
 
 import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.ForLoopTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.IfTree;
 import com.sun.source.tree.ImportTree;
@@ -65,14 +66,17 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
     StringBuilder source = new StringBuilder();
     source.append(imports);
     source.append("public class ").append("GeneratorImpl").append(" {\n");
+
+    for (VariableTree variable : variables) {
+      String s = "  " + variable.getType() + " " + variable.getName() + ";\n";
+      source.append(s);
+    }
+
+
     source.append("  public synctest.Iterator ").append("create() {\n");
     source.append("    class IteratorImpl implements synctest.Iterator {\n");
     source.append("      public void next(synctest.Context context) {\n");
 
-    for (VariableTree variable : variables) {
-      String s = "    " + variable.getType() + " " + variable.getName() + ";\n";
-      source.insert(0, s);
-    }
     source.append("        while(true) {\n");
     source.append("          switch(context.status) {\n");
     for (int idx = 0;idx < frames.size();idx++) {
@@ -163,7 +167,66 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
       throw new UnsupportedOperationException();
     }
 
-    return null;
+    return o;
+  }
+
+  @Override
+  public Object visitForLoop(ForLoopTree node, Object o) {
+
+    Frame initializerFrame = frames.peekLast();
+
+    Frame current = new Frame();
+    frames.add(current);
+    int index = current.statements.size();
+
+    node.getStatement().accept(this, o);
+
+    if (current != frames.peekLast()) {
+
+      initializerFrame.suspend = false;
+      initializerFrame.jump = current.id;
+
+      node.getInitializer().forEach(initializer -> {
+        if (initializer instanceof VariableTree) {
+          VariableTree var = (VariableTree) initializer;
+          initializerFrame.statements.add(var.getName() + " = " + var.getInitializer() + ";");
+          variables.add(var);
+        } else {
+          throw new UnsupportedOperationException();
+        }
+      });
+
+      Frame afterFrame = new Frame();
+
+      current.statements.addAll(0, Arrays.asList(
+          "if (!(" + node.getCondition() + ")) {",
+          "  context.status = " + afterFrame.id + ";",
+          "  break;",
+          "}"
+      ));
+
+      node.getUpdate().forEach(update -> {
+        frames.peekLast().append(update.toString() + ";");
+      });
+
+      frames.peekLast().suspend = false;
+      frames.peekLast().jump = current.id;
+
+      frames.add(afterFrame);
+
+    } else {
+      List<String> before = new ArrayList<>();
+      node.getInitializer().forEach(initializer -> {
+        before.add(initializer.toString() + ";");
+      });
+      before.add("for (;" + node.getCondition() + ";" + node.getUpdate().get(0).getExpression() + ") {");
+      current.statements.addAll(index, before);
+      current.statements.add("}");
+      initializerFrame.suspend = false;
+      initializerFrame.jump = current.id;
+    }
+
+    return o;
   }
 
   @Override

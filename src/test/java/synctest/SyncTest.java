@@ -119,4 +119,26 @@ public class SyncTest {
     it.next(context);
     assertEquals(Arrays.asList("before", "juu", "daa", "after"), output);
   }
+
+  @Test
+  public void testYieldInFor() throws Exception {
+    synctest.Iterator it = compile("test5.A");
+    Context context = new Context();
+    it.next(context);
+    assertEquals(Arrays.asList("before", "<-0"), output);
+    it.next(context);
+    assertEquals(Arrays.asList("before", "<-0", "->0", "<-1"), output);
+    it.next(context);
+    assertEquals(Arrays.asList("before", "<-0", "->0", "<-1", "->1", "<-2"), output);
+    it.next(context);
+    assertEquals(Arrays.asList("before", "<-0", "->0", "<-1", "->1", "<-2", "->2", "after"), output);
+  }
+
+  @Test
+  public void testFor() throws Exception {
+    synctest.Iterator it = compile("test6.A");
+    Context context = new Context();
+    it.next(context);
+    assertEquals(Arrays.asList("before", "<-0", "->0", "<-1", "->1", "<-2", "->2", "after"), output);
+  }
 }
