@@ -101,4 +101,22 @@ public class SyncTest {
     it.next(context);
     assertEquals(Arrays.asList("before", "juu", "after"), output);
   }
+
+  @Test
+  public void testYieldInIfYieldInElse() throws Exception {
+    synctest.Iterator it = compile("test4.A");
+    Context context = new Context();
+    value = "one";
+    it.next(context);
+    assertEquals(Arrays.asList("before", "foo"), output);
+    it.next(context);
+    assertEquals(Arrays.asList("before", "foo", "bar", "after"), output);
+    context = new Context();
+    output.clear();
+    value = null;
+    it.next(context);
+    assertEquals(Arrays.asList("before", "juu"), output);
+    it.next(context);
+    assertEquals(Arrays.asList("before", "juu", "daa", "after"), output);
+  }
 }

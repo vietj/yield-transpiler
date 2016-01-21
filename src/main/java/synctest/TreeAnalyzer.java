@@ -139,11 +139,14 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
       int afterIf = next.id;
       if (node.getElseStatement() != null) {
         Frame elseFrame = new Frame();
+        afterIf = elseFrame.id;
         frames.add(elseFrame);
         node.getElseStatement().accept(this, o);
+        if (elseFrame != frames.peekLast()) {
+          elseFrame = frames.peekLast();
+        }
         elseFrame.suspend = false;
         elseFrame.jump = next.id;
-        afterIf = elseFrame.id;
       }
 
       frames.add(next);
@@ -166,7 +169,7 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
   @Override
   public Object visitMethodInvocation(MethodInvocationTree node, Object o) {
     if (isYield(node)) {
-      frames.peekLast().jump = frames.size();
+      frames.peekLast().jump = nextId;
       beginFrame();
     } else {
       frames.peekLast().append(node.toString() + ";");
