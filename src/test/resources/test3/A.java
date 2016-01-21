@@ -9,13 +9,14 @@ import java.util.function.Consumer;
 public class A {
   @Generator
   public void sync() {
+    SyncTest.output.add("before");
     if ("one".equals(SyncTest.value)) {
-      SyncTest.value = "foo";
+      SyncTest.output.add("foo");
       Helper.yield();
-      SyncTest.value = "bar";
+      SyncTest.output.add("bar");
     } else {
-      SyncTest.value = "juu";
+      SyncTest.output.add("juu");
     }
-    SyncTest.value2 = "done";
+    SyncTest.output.add("after");
   }
 }

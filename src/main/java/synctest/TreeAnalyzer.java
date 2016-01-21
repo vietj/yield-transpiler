@@ -10,6 +10,7 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
+import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 
 import java.util.ArrayList;
@@ -25,19 +26,17 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
   private final List<VariableTree> variables = new ArrayList<>();
   private final StringBuilder imports = new StringBuilder();
   private LinkedList<Frame> frames = new LinkedList<>();
+  private int nextId = 0;
 
-  private static class Frame {
+  private class Frame {
 
     final int id;
     final List<String> statements;
-    boolean returning = true;
+    boolean suspend = true;
+    int jump = -1;
 
-    Frame(int id, List<String> statements) {
-      this.id = id;
-      this.statements = statements;
-    }
-    Frame(int id) {
-      this.id = id;
+    Frame() {
+      this.id = nextId++;
       this.statements = new ArrayList<>();
     }
     Frame append(String statement) {
@@ -47,7 +46,7 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
   }
 
   private void beginFrame() {
-    frames.add(new Frame(frames.size()));
+    frames.add(new Frame());
   }
 
   @Override
@@ -57,11 +56,11 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
     return null;
   }
 
-  @Override
-  public String visitMethod(MethodTree node, Object o) {
+  public String visitMethod(TreePath node) {
     variables.clear();
     beginFrame();
-    o = super.visitMethod(node, o);
+
+    scan(node, null);
 
     StringBuilder source = new StringBuilder();
     source.append(imports);
@@ -82,8 +81,10 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
       for (String statement : frame.statements) {
         source.append("              ").append(statement).append("\n");
       }
-      source.append("              context.status = ").append(frame.id + 1).append(";\n");
-      source.append("              " + (frame.returning ? "return" : "break") + ";\n");
+      if (frame.jump >= 0) {
+        source.append("              context.status = ").append(frame.jump).append(";\n");
+      }
+      source.append("              ").append(frame.suspend ? "return" : "break").append(";\n");
       source.append("            }\n");
     }
     source.append("          }\n");
@@ -96,6 +97,13 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
     source.append("}\n");
 
     return source.toString();
+  }
+
+  @Override
+  public Object visitMethod(MethodTree node, Object o) {
+    o = super.visitMethod(node, o);
+
+    return o;
   }
 
   @Override
@@ -121,18 +129,28 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
 
     if (frames.peekLast() != current) {
 
-      frames.peekLast().returning = false;
+      Frame abc = frames.peekLast();
 
-      Frame next = new Frame(frames.size());
-      frames.add(next);
+      Frame next = new Frame();
 
+      abc.suspend = false;
+      abc.jump = next.id;
+
+      int afterIf = next.id;
       if (node.getElseStatement() != null) {
-        throw new UnsupportedOperationException();
+        Frame elseFrame = new Frame();
+        frames.add(elseFrame);
+        node.getElseStatement().accept(this, o);
+        elseFrame.suspend = false;
+        elseFrame.jump = next.id;
+        afterIf = elseFrame.id;
       }
+
+      frames.add(next);
 
       current.statements.addAll(index, Arrays.asList(
           "if (!" + node.getCondition() + ") {",
-          "  context.status = " + next.id + ";",
+          "  context.status = " + afterIf + ";",
           "  break;",
           "}"
       ));
@@ -148,9 +166,10 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
   @Override
   public Object visitMethodInvocation(MethodInvocationTree node, Object o) {
     if (isYield(node)) {
+      frames.peekLast().jump = frames.size();
       beginFrame();
     } else {
-      frames.peekLast().append(node.toString());
+      frames.peekLast().append(node.toString() + ";");
     }
     return o;
   }

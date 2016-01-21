@@ -9,8 +9,8 @@ import java.util.function.Consumer;
 public class A {
   @Generator
   public void sync() {
-    SyncTest.value = "foo";
+    SyncTest.output.add("foo");
     Helper.yield();
-    SyncTest.value = "bar";
+    SyncTest.output.add("bar");
   }
 }

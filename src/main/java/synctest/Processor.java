@@ -60,7 +60,7 @@ public class Processor extends AbstractProcessor {
     TreePath path = trees.getPath(methodElt);
     TreeAnalyzer analyzer = new TreeAnalyzer();
     path.getCompilationUnit().getImports().forEach(import_ -> analyzer.visitImport(import_, null));
-    String source = (String)analyzer.scan(path, null);
+    String source = analyzer.visitMethod(path);
     try {
       JavaFileObject generator = processingEnv.getFiler().createSourceFile("GeneratorImpl", methodElt);
       try (Writer writer = generator.openWriter()) {

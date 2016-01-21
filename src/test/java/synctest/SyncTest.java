@@ -14,7 +14,10 @@ import java.io.PrintWriter;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 
 import static org.junit.Assert.*;
@@ -25,11 +28,12 @@ import static org.junit.Assert.*;
 public class SyncTest {
 
   public static String value;
-  public static String value2;
+  public static List<String> output;
 
   @Before
   public void before() {
     value = null;
+    output = new ArrayList<>();
   }
 
   private synctest.Iterator compile(String fqn) throws Exception {
@@ -61,9 +65,9 @@ public class SyncTest {
     synctest.Iterator it = compile("test1.A");
     Context context = new Context();
     it.next(context);
-    assertEquals("foo", value);
+    assertEquals(Arrays.asList("foo"), output);
     it.next(context);
-    assertEquals("bar", value);
+    assertEquals(Arrays.asList("foo", "bar"), output);
   }
 
   @Test
@@ -72,33 +76,29 @@ public class SyncTest {
     Context context = new Context();
     value = "one";
     it.next(context);
-    assertEquals("foo", value);
-    assertEquals(null, value2);
+    assertEquals(Arrays.asList("before", "foo"), output);
     it.next(context);
-    assertEquals("bar", value);
-    assertEquals("done", value2);
+    assertEquals(Arrays.asList("before", "foo", "bar", "after"), output);
+    output.clear();
     context = new Context();
     value = null;
     it.next(context);
-    assertEquals(null, value);
-    assertEquals("done", value2);
+    assertEquals(Arrays.asList("before", "after"), output);
   }
 
   @Test
   public void testYieldInIfElse() throws Exception {
     synctest.Iterator it = compile("test3.A");
-//    Context context = new Context();
-//    value = "one";
-//    it.next(context);
-//    assertEquals("foo", value);
-//    assertEquals(null, value2);
-//    it.next(context);
-//    assertEquals("bar", value);
-//    assertEquals("done", value2);
-//    context = new Context();
-//    value = null;
-//    it.next(context);
-//    assertEquals(null, value);
-//    assertEquals("done", value2);
+    Context context = new Context();
+    value = "one";
+    it.next(context);
+    assertEquals(Arrays.asList("before", "foo"), output);
+    it.next(context);
+    assertEquals(Arrays.asList("before", "foo", "bar", "after"), output);
+    context = new Context();
+    output.clear();
+    value = null;
+    it.next(context);
+    assertEquals(Arrays.asList("before", "juu", "after"), output);
   }
 }
