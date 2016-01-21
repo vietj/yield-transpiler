@@ -14,9 +14,7 @@ import java.io.PrintWriter;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.Charset;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 import java.util.Locale;
 
 import static org.junit.Assert.*;
@@ -27,6 +25,7 @@ import static org.junit.Assert.*;
 public class SyncTest {
 
   public static String value;
+  public static String value2;
 
   @Before
   public void before() {
@@ -34,6 +33,10 @@ public class SyncTest {
   }
 
   private synctest.Iterator compile(String fqn) throws Exception {
+
+    File classes = new File(new File("target"), fqn);
+    assertTrue(classes.exists() ? classes.isDirectory() : classes.mkdirs());
+
     URL res = SyncTest.class.getResource("/" + fqn.replace('.', '/') + ".java");
     assertNotNull(res);
     File root = new File(res.toURI()).getParentFile().getParentFile().getAbsoluteFile();
@@ -41,13 +44,13 @@ public class SyncTest {
     JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
     StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, Locale.ENGLISH, Charset.forName("UTF-8"));
     fileManager.setLocation(StandardLocation.SOURCE_PATH, Collections.singletonList(root));
-    fileManager.setLocation(StandardLocation.CLASS_OUTPUT, Collections.singletonList(new File("target/classes")));
-    fileManager.setLocation(StandardLocation.SOURCE_OUTPUT, Collections.singletonList(new File("target/classes")));
+    fileManager.setLocation(StandardLocation.CLASS_OUTPUT, Collections.singletonList(classes));
+    fileManager.setLocation(StandardLocation.SOURCE_OUTPUT, Collections.singletonList(classes));
     Iterable<? extends JavaFileObject> sources = fileManager.getJavaFileObjects(new File(res.toURI()));
     JavaCompiler.CompilationTask task = compiler.getTask(new PrintWriter(System.out), fileManager, diagnostics, Collections.<String>emptyList(), Collections.emptyList(), sources);
     task.setProcessors(Collections.singletonList(new Processor()));
     assertTrue(task.call());
-    URLClassLoader loader = new URLClassLoader(new URL[]{new File(".").getAbsoluteFile().toURI().toURL()}, Thread.currentThread().getContextClassLoader());
+    URLClassLoader loader = new URLClassLoader(new URL[]{classes.toURI().toURL()}, Thread.currentThread().getContextClassLoader());
     Class<?> genClass = loader.loadClass("GeneratorImpl");
     Object instance = genClass.newInstance();
     return (Iterator) genClass.getMethod("create").invoke(instance);
@@ -61,5 +64,41 @@ public class SyncTest {
     assertEquals("foo", value);
     it.next(context);
     assertEquals("bar", value);
+  }
+
+  @Test
+  public void testYieldInIf() throws Exception {
+    synctest.Iterator it = compile("test2.A");
+    Context context = new Context();
+    value = "one";
+    it.next(context);
+    assertEquals("foo", value);
+    assertEquals(null, value2);
+    it.next(context);
+    assertEquals("bar", value);
+    assertEquals("done", value2);
+    context = new Context();
+    value = null;
+    it.next(context);
+    assertEquals(null, value);
+    assertEquals("done", value2);
+  }
+
+  @Test
+  public void testYieldInIfElse() throws Exception {
+    synctest.Iterator it = compile("test3.A");
+//    Context context = new Context();
+//    value = "one";
+//    it.next(context);
+//    assertEquals("foo", value);
+//    assertEquals(null, value2);
+//    it.next(context);
+//    assertEquals("bar", value);
+//    assertEquals("done", value2);
+//    context = new Context();
+//    value = null;
+//    it.next(context);
+//    assertEquals(null, value);
+//    assertEquals("done", value2);
   }
 }

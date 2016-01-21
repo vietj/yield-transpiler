@@ -3,6 +3,7 @@ package synctest;
 import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.IfTree;
 import com.sun.source.tree.ImportTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
@@ -12,6 +13,8 @@ import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePathScanner;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -21,25 +24,30 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
 
   private final List<VariableTree> variables = new ArrayList<>();
   private final StringBuilder imports = new StringBuilder();
-  private List<String> statements = new ArrayList<>();
-  private List<Frame> frames = new ArrayList<>();
+  private LinkedList<Frame> frames = new LinkedList<>();
 
   private static class Frame {
+
     final int id;
     final List<String> statements;
+    boolean returning = true;
+
     Frame(int id, List<String> statements) {
       this.id = id;
       this.statements = statements;
     }
+    Frame(int id) {
+      this.id = id;
+      this.statements = new ArrayList<>();
+    }
+    Frame append(String statement) {
+      statements.add(statement);
+      return this;
+    }
   }
 
   private void beginFrame() {
-
-  }
-
-  private void endFrame() {
-    frames.add(new Frame(frames.size(), new ArrayList<>(statements)));
-    statements.clear();
+    frames.add(new Frame(frames.size()));
   }
 
   @Override
@@ -54,7 +62,6 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
     variables.clear();
     beginFrame();
     o = super.visitMethod(node, o);
-    endFrame();
 
     StringBuilder source = new StringBuilder();
     source.append(imports);
@@ -67,16 +74,19 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
       String s = "    " + variable.getType() + " " + variable.getName() + ";\n";
       source.insert(0, s);
     }
-    source.append("        switch(context.status) {\n");
-    for (Frame frame : frames) {
-      source.append("          case ").append(frame.id).append(": {\n");
+    source.append("        while(true) {\n");
+    source.append("          switch(context.status) {\n");
+    for (int idx = 0;idx < frames.size();idx++) {
+      Frame frame = frames.get(idx);
+      source.append("            case ").append(frame.id).append(": {\n");
       for (String statement : frame.statements) {
-        source.append("            ").append(statement).append(";\n");
+        source.append("              ").append(statement).append("\n");
       }
-      source.append("            context.status = ").append(frame.id + 1).append(";\n");
-      source.append("            break;\n");
-      source.append("          }\n");
+      source.append("              context.status = ").append(frame.id + 1).append(";\n");
+      source.append("              " + (frame.returning ? "return" : "break") + ";\n");
+      source.append("            }\n");
     }
+    source.append("          }\n");
     source.append("        }\n");
     source.append("      }\n");
     source.append("    }\n");
@@ -91,23 +101,56 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
   @Override
   public Object visitVariable(VariableTree node, Object o) {
     variables.add(node);
-    statements.add(node.getName() + " = " + node.getInitializer());
+    frames.getLast().append(node.getName() + " = " + node.getInitializer() + ";");
     return super.visitVariable(node, o);
   }
 
   @Override
   public Object visitAssignment(AssignmentTree node, Object o) {
-    statements.add(node.toString());
+    frames.peekLast().append(node.toString() + ";");
     return super.visitAssignment(node, o);
+  }
+
+  @Override
+  public Object visitIf(IfTree node, Object o) {
+
+    Frame current = frames.peekLast();
+    int index = current.statements.size();
+
+    node.getThenStatement().accept(this, null);
+
+    if (frames.peekLast() != current) {
+
+      frames.peekLast().returning = false;
+
+      Frame next = new Frame(frames.size());
+      frames.add(next);
+
+      if (node.getElseStatement() != null) {
+        throw new UnsupportedOperationException();
+      }
+
+      current.statements.addAll(index, Arrays.asList(
+          "if (!" + node.getCondition() + ") {",
+          "  context.status = " + next.id + ";",
+          "  break;",
+          "}"
+      ));
+
+
+    } else {
+      throw new UnsupportedOperationException();
+    }
+
+    return null;
   }
 
   @Override
   public Object visitMethodInvocation(MethodInvocationTree node, Object o) {
     if (isYield(node)) {
       beginFrame();
-      endFrame();
     } else {
-      statements.add(node.toString());
+      frames.peekLast().append(node.toString());
     }
     return o;
   }
