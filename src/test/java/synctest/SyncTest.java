@@ -141,4 +141,14 @@ public class SyncTest {
     it.next(context);
     assertEquals(Arrays.asList("before", "<-0", "->0", "<-1", "->1", "<-2", "->2", "after"), output);
   }
+
+  @Test
+  public void testYieldInIfInFor() throws Exception {
+    synctest.Iterator it = compile("test_yield_if_in_for.A");
+    Context context = new Context();
+    it.next(context);
+    assertEquals(Arrays.asList("before", "<-0", "->0", "<-1"), output);
+    it.next(context);
+    assertEquals(Arrays.asList("before", "<-0", "->0", "<-1", "->1", "<-2", "->2", "after"), output);
+  }
 }

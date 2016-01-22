@@ -34,7 +34,7 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
     final int id;
     final List<String> statements;
     boolean suspend = true;
-    int jump = -1;
+    Frame next;
 
     Frame() {
       this.id = nextId++;
@@ -85,8 +85,8 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
       for (String statement : frame.statements) {
         source.append("              ").append(statement).append("\n");
       }
-      if (frame.jump >= 0) {
-        source.append("              context.status = ").append(frame.jump).append(";\n");
+      if (frame.next != null) {
+        source.append("              context.status = ").append(frame.next.id).append(";\n");
       }
       source.append("              ").append(frame.suspend ? "return" : "break").append(";\n");
       source.append("            }\n");
@@ -138,7 +138,7 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
       Frame next = new Frame();
 
       abc.suspend = false;
-      abc.jump = next.id;
+      abc.next = next;
 
       int afterIf = next.id;
       if (node.getElseStatement() != null) {
@@ -150,7 +150,7 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
           elseFrame = frames.peekLast();
         }
         elseFrame.suspend = false;
-        elseFrame.jump = next.id;
+        elseFrame.next = next;
       }
 
       frames.add(next);
@@ -184,7 +184,7 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
     if (current != frames.peekLast()) {
 
       initializerFrame.suspend = false;
-      initializerFrame.jump = current.id;
+      initializerFrame.next = current;
 
       node.getInitializer().forEach(initializer -> {
         if (initializer instanceof VariableTree) {
@@ -210,7 +210,7 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
       });
 
       frames.peekLast().suspend = false;
-      frames.peekLast().jump = current.id;
+      frames.peekLast().next = current;
 
       frames.add(afterFrame);
 
@@ -223,7 +223,7 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
       current.statements.addAll(index, before);
       current.statements.add("}");
       initializerFrame.suspend = false;
-      initializerFrame.jump = current.id;
+      initializerFrame.next = current;
     }
 
     return o;
@@ -232,8 +232,9 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
   @Override
   public Object visitMethodInvocation(MethodInvocationTree node, Object o) {
     if (isYield(node)) {
-      frames.peekLast().jump = nextId;
+      Frame last = frames.peekLast();
       beginFrame();
+      last.next = frames.peekLast();
     } else {
       frames.peekLast().append(node.toString() + ";");
     }
