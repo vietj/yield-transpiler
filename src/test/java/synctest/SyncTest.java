@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static org.junit.Assert.*;
@@ -199,5 +200,31 @@ public class SyncTest {
     assertEquals(Arrays.asList(), output);
     it.next("the_argument_value");
     assertEquals(Arrays.asList("the_argument_value"), output);
+  }
+
+  @Test
+  public void testAsyncCallback() throws Exception {
+    Supplier<Generator> test = compile("test_async_callback.A");
+    Generator it = test.get();
+    Consumer<Generator> consumer = (Consumer<Generator>) it.next();
+    consumer.accept(it);
+    assertNotNull(theCallback);
+    assertEquals(Arrays.asList(), output);
+    theCallback.accept("the_callback_value");
+    assertEquals(Arrays.asList("the_callback_value"), output);
+  }
+
+  public static Consumer<Generator> wrap(Consumer<Consumer<String>> tutu) {
+    return generator -> {
+      tutu.accept(event -> {
+        generator.next(event);
+      });
+    };
+  }
+
+  private static Consumer<String> theCallback;
+
+  public static void async(Consumer<String> callback) {
+    theCallback = callback;
   }
 }

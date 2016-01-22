@@ -9,7 +9,7 @@ public class Helper {
     throw new UnsupportedOperationException("Should never be invoked directly");
   }
 
-  public static void yield(Object value) {
+  public static <T> T yield(Object value) {
+    throw new UnsupportedOperationException("Should never be invoked directly");
   }
-
 }
