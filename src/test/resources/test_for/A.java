@@ -1,10 +1,7 @@
-package test5;
+package test_yield_in_for;
 
-import synctest.Helper;
 import synctest.Generator;
 import synctest.SyncTest;
-
-import java.util.function.Consumer;
 
 public class A {
   @Generator

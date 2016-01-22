@@ -1,10 +1,8 @@
-package test1;
+package test_suspend_resume;
 
 import synctest.Helper;
 import synctest.Generator;
 import synctest.SyncTest;
-
-import java.util.function.Consumer;
 
 public class A {
   @Generator

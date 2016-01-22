@@ -1,10 +1,8 @@
-package test3;
+package test_yield_in_if_yield_in_else;
 
 import synctest.Helper;
 import synctest.Generator;
 import synctest.SyncTest;
-
-import java.util.function.Consumer;
 
 public class A {
   @Generator
@@ -16,6 +14,8 @@ public class A {
       SyncTest.output.add("bar");
     } else {
       SyncTest.output.add("juu");
+      Helper.yield();
+      SyncTest.output.add("daa");
     }
     SyncTest.output.add("after");
   }

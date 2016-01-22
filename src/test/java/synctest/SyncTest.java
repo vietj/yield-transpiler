@@ -62,7 +62,7 @@ public class SyncTest {
 
   @Test
   public void testSuspendResume() throws Exception {
-    synctest.Iterator it = compile("test1.A");
+    synctest.Iterator it = compile("test_suspend_resume.A");
     Context context = new Context();
     it.next(context);
     assertEquals(Arrays.asList("foo"), output);
@@ -72,7 +72,7 @@ public class SyncTest {
 
   @Test
   public void testYieldInIf() throws Exception {
-    synctest.Iterator it = compile("test2.A");
+    synctest.Iterator it = compile("test_yield_in_if.A");
     Context context = new Context();
     value = "one";
     it.next(context);
@@ -88,7 +88,7 @@ public class SyncTest {
 
   @Test
   public void testYieldInIfElse() throws Exception {
-    synctest.Iterator it = compile("test3.A");
+    synctest.Iterator it = compile("test_yield_in_if_else.A");
     Context context = new Context();
     value = "one";
     it.next(context);
@@ -104,7 +104,7 @@ public class SyncTest {
 
   @Test
   public void testYieldInIfYieldInElse() throws Exception {
-    synctest.Iterator it = compile("test4.A");
+    synctest.Iterator it = compile("test_yield_in_if_yield_in_else.A");
     Context context = new Context();
     value = "one";
     it.next(context);
@@ -122,7 +122,7 @@ public class SyncTest {
 
   @Test
   public void testYieldInFor() throws Exception {
-    synctest.Iterator it = compile("test5.A");
+    synctest.Iterator it = compile("test_yield_in_for.A");
     Context context = new Context();
     it.next(context);
     assertEquals(Arrays.asList("before", "<-0"), output);
@@ -136,7 +136,7 @@ public class SyncTest {
 
   @Test
   public void testFor() throws Exception {
-    synctest.Iterator it = compile("test6.A");
+    synctest.Iterator it = compile("test_for.A");
     Context context = new Context();
     it.next(context);
     assertEquals(Arrays.asList("before", "<-0", "->0", "<-1", "->1", "<-2", "->2", "after"), output);
