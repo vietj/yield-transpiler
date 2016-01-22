@@ -58,7 +58,7 @@ public class Processor extends AbstractProcessor {
     TypeElement typeElt = (TypeElement) methodElt.getEnclosingElement();
     attributeClass(typeElt);
     TreePath path = trees.getPath(methodElt);
-    TreeAnalyzer analyzer = new TreeAnalyzer();
+    Generatorizer analyzer = new Generatorizer();
     path.getCompilationUnit().getImports().forEach(import_ -> analyzer.visitImport(import_, null));
     String source = analyzer.visitMethod(path);
     try {

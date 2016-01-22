@@ -15,24 +15,29 @@ import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public class TreeAnalyzer extends TreePathScanner<Object, Object> {
+public class Generatorizer extends TreePathScanner<Object, Object> {
 
   private final List<VariableTree> variables = new ArrayList<>();
   private final StringBuilder imports = new StringBuilder();
-  private LinkedList<Frame> frames = new LinkedList<>();
+  private Map<Integer, Frame> frames = new LinkedHashMap<>();
   private int nextId = 0;
+  private Frame currentFrame;
+
+  private interface Statement {
+    void render(String padding, StringBuilder buffer);
+  }
 
   private class Frame {
 
     final int id;
-    final List<String> statements;
+    final List<Statement> statements;
     boolean suspend = true;
     Frame next;
 
@@ -41,13 +46,21 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
       this.statements = new ArrayList<>();
     }
     Frame append(String statement) {
-      statements.add(statement);
+      statements.add((padding, buffer) -> buffer.append(padding).append(statement).append("\n"));
       return this;
+    }
+
+    void render(StringBuilder buffer) {
+      for (Statement statement : statements) {
+        statement.render("              ", buffer);
+      }
     }
   }
 
-  private void beginFrame() {
-    frames.add(new Frame());
+  private Frame newFrame() {
+    Frame frame = new Frame();
+    frames.put(frame.id, frame);
+    return frame;
   }
 
   @Override
@@ -59,7 +72,7 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
 
   public String visitMethod(TreePath node) {
     variables.clear();
-    beginFrame();
+    currentFrame = newFrame();
 
     scan(node, null);
 
@@ -79,12 +92,9 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
 
     source.append("        while(true) {\n");
     source.append("          switch(context.status) {\n");
-    for (int idx = 0;idx < frames.size();idx++) {
-      Frame frame = frames.get(idx);
+    for (Frame frame : frames.values()) {
       source.append("            case ").append(frame.id).append(": {\n");
-      for (String statement : frame.statements) {
-        source.append("              ").append(statement).append("\n");
-      }
+      frame.render(source);
       if (frame.next != null) {
         source.append("              context.status = ").append(frame.next.id).append(";\n");
       }
@@ -113,54 +123,57 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
   @Override
   public Object visitVariable(VariableTree node, Object o) {
     variables.add(node);
-    frames.getLast().append(node.getName() + " = " + node.getInitializer() + ";");
+    if (node.getInitializer() != null) {
+      currentFrame.append(node.getName() + " = " + node.getInitializer() + ";");
+    }
     return super.visitVariable(node, o);
   }
 
   @Override
   public Object visitAssignment(AssignmentTree node, Object o) {
-    frames.peekLast().append(node.toString() + ";");
+    currentFrame.append(node.toString() + ";");
     return super.visitAssignment(node, o);
   }
 
   @Override
   public Object visitIf(IfTree node, Object o) {
 
-    Frame current = frames.peekLast();
+    Frame current = currentFrame;
     int index = current.statements.size();
 
     node.getThenStatement().accept(this, null);
 
-    if (frames.peekLast() != current) {
+    if (currentFrame != current) {
 
-      Frame abc = frames.peekLast();
+      Frame abc = currentFrame;
 
-      Frame next = new Frame();
+      Frame next = newFrame();
 
       abc.suspend = false;
       abc.next = next;
 
       int afterIf = next.id;
       if (node.getElseStatement() != null) {
-        Frame elseFrame = new Frame();
+        Frame elseFrame = newFrame();
         afterIf = elseFrame.id;
-        frames.add(elseFrame);
+        currentFrame = elseFrame;
         node.getElseStatement().accept(this, o);
-        if (elseFrame != frames.peekLast()) {
-          elseFrame = frames.peekLast();
+        if (elseFrame != currentFrame) {
+          elseFrame = currentFrame;
         }
         elseFrame.suspend = false;
         elseFrame.next = next;
       }
 
-      frames.add(next);
+      currentFrame = next;
 
-      current.statements.addAll(index, Arrays.asList(
-          "if (!" + node.getCondition() + ") {",
-          "  context.status = " + afterIf + ";",
-          "  break;",
-          "}"
-      ));
+      int a = afterIf;
+      current.statements.add(index, (padding, buffer) -> {
+        buffer.append(padding).append("if (!").append(node.getCondition()).append(") {\n");
+        buffer.append(padding).append("  context.status = ").append(a).append(";\n");
+        buffer.append(padding).append("  break;\n");
+        buffer.append(padding).append("};\n");
+      });
 
 
     } else {
@@ -173,15 +186,15 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
   @Override
   public Object visitForLoop(ForLoopTree node, Object o) {
 
-    Frame initializerFrame = frames.peekLast();
+    Frame initializerFrame = currentFrame;
 
-    Frame current = new Frame();
-    frames.add(current);
+    Frame current = newFrame();
+    currentFrame = current;
     int index = current.statements.size();
 
     node.getStatement().accept(this, o);
 
-    if (current != frames.peekLast()) {
+    if (current != currentFrame) {
 
       initializerFrame.suspend = false;
       initializerFrame.next = current;
@@ -189,39 +202,40 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
       node.getInitializer().forEach(initializer -> {
         if (initializer instanceof VariableTree) {
           VariableTree var = (VariableTree) initializer;
-          initializerFrame.statements.add(var.getName() + " = " + var.getInitializer() + ";");
+          initializerFrame.append(var.getName() + " = " + var.getInitializer() + ";");
           variables.add(var);
         } else {
           throw new UnsupportedOperationException();
         }
       });
 
-      Frame afterFrame = new Frame();
+      Frame afterFrame = newFrame();
 
-      current.statements.addAll(0, Arrays.asList(
-          "if (!(" + node.getCondition() + ")) {",
-          "  context.status = " + afterFrame.id + ";",
-          "  break;",
-          "}"
-      ));
+      current.statements.add(0, (padding, buffer) -> {
+        buffer.append(padding).append("if (!(").append(node.getCondition()).append(")) {\n");
+        buffer.append(padding).append("  context.status = ").append(afterFrame.id).append(";\n");
+        buffer.append(padding).append("  break;\n");
+        buffer.append(padding).append("}\n");
+      });
 
       node.getUpdate().forEach(update -> {
-        frames.peekLast().append(update.toString() + ";");
+        currentFrame.append(update.toString() + ";");
       });
 
-      frames.peekLast().suspend = false;
-      frames.peekLast().next = current;
+      currentFrame.suspend = false;
+      currentFrame.next = current;
 
-      frames.add(afterFrame);
+      currentFrame = afterFrame;
 
     } else {
-      List<String> before = new ArrayList<>();
-      node.getInitializer().forEach(initializer -> {
-        before.add(initializer.toString() + ";");
+      List<Statement> sub = current.statements.subList(index, currentFrame.statements.size());
+      sub.clear();
+      current.statements.add((padding, buffer) -> {
+        Utils.splitBySep(node.toString()).forEach(line -> {
+          buffer.append(padding).append(line).append("\n");
+        });
+
       });
-      before.add("for (;" + node.getCondition() + ";" + node.getUpdate().get(0).getExpression() + ") {");
-      current.statements.addAll(index, before);
-      current.statements.add("}");
       initializerFrame.suspend = false;
       initializerFrame.next = current;
     }
@@ -232,11 +246,10 @@ public class TreeAnalyzer extends TreePathScanner<Object, Object> {
   @Override
   public Object visitMethodInvocation(MethodInvocationTree node, Object o) {
     if (isYield(node)) {
-      Frame last = frames.peekLast();
-      beginFrame();
-      last.next = frames.peekLast();
+      currentFrame.next = newFrame();
+      currentFrame = currentFrame.next;
     } else {
-      frames.peekLast().append(node.toString() + ";");
+      currentFrame.append(node.toString() + ";");
     }
     return o;
   }
