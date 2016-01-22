@@ -36,7 +36,7 @@ public class SyncTest {
     output = new ArrayList<>();
   }
 
-  private synctest.Iterator compile(String fqn) throws Exception {
+  private Generator compile(String fqn) throws Exception {
 
     File classes = new File(new File("target"), fqn);
     assertTrue(classes.exists() ? classes.isDirectory() : classes.mkdirs());
@@ -62,12 +62,12 @@ public class SyncTest {
     URLClassLoader loader = new URLClassLoader(new URL[]{classes.toURI().toURL()}, Thread.currentThread().getContextClassLoader());
     Class<?> genClass = loader.loadClass("GeneratorImpl");
     Object instance = genClass.newInstance();
-    return (Iterator) genClass.getMethod("create").invoke(instance);
+    return (Generator) genClass.getMethod("create").invoke(instance);
   }
 
   @Test
   public void testSuspendResume() throws Exception {
-    synctest.Iterator it = compile("test_suspend_resume.A");
+    Generator it = compile("test_suspend_resume.A");
     Context context = new Context();
     it.next(context);
     assertEquals(Arrays.asList("foo"), output);
@@ -77,7 +77,7 @@ public class SyncTest {
 
   @Test
   public void testYieldInIf() throws Exception {
-    synctest.Iterator it = compile("test_yield_in_if.A");
+    Generator it = compile("test_yield_in_if.A");
     Context context = new Context();
     value = "one";
     it.next(context);
@@ -93,7 +93,7 @@ public class SyncTest {
 
   @Test
   public void testYieldInIfElse() throws Exception {
-    synctest.Iterator it = compile("test_yield_in_if_else.A");
+    Generator it = compile("test_yield_in_if_else.A");
     Context context = new Context();
     value = "one";
     it.next(context);
@@ -109,7 +109,7 @@ public class SyncTest {
 
   @Test
   public void testYieldInIfYieldInElse() throws Exception {
-    synctest.Iterator it = compile("test_yield_in_if_yield_in_else.A");
+    Generator it = compile("test_yield_in_if_yield_in_else.A");
     Context context = new Context();
     value = "one";
     it.next(context);
@@ -127,7 +127,7 @@ public class SyncTest {
 
   @Test
   public void testYieldInFor() throws Exception {
-    synctest.Iterator it = compile("test_yield_in_for.A");
+    Generator it = compile("test_yield_in_for.A");
     Context context = new Context();
     it.next(context);
     assertEquals(Arrays.asList("before", "<-0"), output);
@@ -141,7 +141,7 @@ public class SyncTest {
 
   @Test
   public void testFor() throws Exception {
-    synctest.Iterator it = compile("test_for.A");
+    Generator it = compile("test_for.A");
     Context context = new Context();
     it.next(context);
     assertEquals(Arrays.asList("before", "<-0", "->0", "<-1", "->1", "<-2", "->2", "after"), output);
@@ -149,7 +149,7 @@ public class SyncTest {
 
   @Test
   public void testYieldInIfInFor() throws Exception {
-    synctest.Iterator it = compile("test_yield_if_in_for.A");
+    Generator it = compile("test_yield_if_in_for.A");
     Context context = new Context();
     it.next(context);
     assertEquals(Arrays.asList("before", "<-0", "->0", "<-1"), output);
@@ -159,7 +159,7 @@ public class SyncTest {
 
   @Test
   public void testDeclareVariable() throws Exception {
-    synctest.Iterator it = compile("test_declare_variable.A");
+    Generator it = compile("test_declare_variable.A");
     Context context = new Context();
     it.next(context);
     assertEquals(Arrays.asList("0"), output);

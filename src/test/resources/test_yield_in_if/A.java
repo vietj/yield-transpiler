@@ -1,11 +1,11 @@
 package test_yield_in_if;
 
 import synctest.Helper;
-import synctest.Generator;
+import synctest.Transpile;
 import synctest.SyncTest;
 
 public class A {
-  @Generator
+  @Transpile
   public void sync() {
     SyncTest.output.add("before");
     if ("one".equals(SyncTest.value)) {

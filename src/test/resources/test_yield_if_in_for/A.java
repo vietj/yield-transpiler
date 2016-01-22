@@ -1,11 +1,11 @@
 package test_yield_if_in_for;
 
 import synctest.Helper;
-import synctest.Generator;
+import synctest.Transpile;
 import synctest.SyncTest;
 
 public class A {
-  @Generator
+  @Transpile
   public void sync() {
     SyncTest.output.add("before");
     for (int i = 0;i < 3;i++) {

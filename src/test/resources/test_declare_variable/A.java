@@ -1,10 +1,10 @@
 package test_declare_variable;
 
-import synctest.Generator;
+import synctest.Transpile;
 import synctest.SyncTest;
 
 public class A {
-  @Generator
+  @Transpile
   public void sync() {
     int i;
     i = 0;

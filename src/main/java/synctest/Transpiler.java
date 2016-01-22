@@ -22,7 +22,7 @@ import java.util.Map;
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public class Generatorizer extends TreePathScanner<Object, Object> {
+public class Transpiler extends TreePathScanner<Object, Object> {
 
   private final List<VariableTree> variables = new ArrayList<>();
   private final StringBuilder imports = new StringBuilder();
@@ -86,8 +86,8 @@ public class Generatorizer extends TreePathScanner<Object, Object> {
     }
 
 
-    source.append("  public synctest.Iterator ").append("create() {\n");
-    source.append("    class IteratorImpl implements synctest.Iterator {\n");
+    source.append("  public synctest.Generator ").append("create() {\n");
+    source.append("    class Impl implements synctest.Generator {\n");
     source.append("      public void next(synctest.Context context) {\n");
 
     source.append("        while(true) {\n");
@@ -106,7 +106,7 @@ public class Generatorizer extends TreePathScanner<Object, Object> {
     source.append("      }\n");
     source.append("    }\n");
 
-    source.append("    return new IteratorImpl();\n");
+    source.append("    return new Impl();\n");
     source.append("  }\n");
     source.append("}\n");
 

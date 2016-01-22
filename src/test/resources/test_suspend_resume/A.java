@@ -1,11 +1,11 @@
 package test_suspend_resume;
 
 import synctest.Helper;
-import synctest.Generator;
+import synctest.Transpile;
 import synctest.SyncTest;
 
 public class A {
-  @Generator
+  @Transpile
   public void sync() {
     SyncTest.output.add("foo");
     Helper.yield();

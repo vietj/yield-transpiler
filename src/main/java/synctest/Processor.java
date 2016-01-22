@@ -40,13 +40,13 @@ public class Processor extends AbstractProcessor {
 
   @Override
   public Set<String> getSupportedAnnotationTypes() {
-    return Collections.singleton(Generator.class.getName());
+    return Collections.singleton(Transpile.class.getName());
   }
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
 
-    for (Element elt : roundEnv.getElementsAnnotatedWith(Generator.class)) {
+    for (Element elt : roundEnv.getElementsAnnotatedWith(Transpile.class)) {
       process((ExecutableElement) elt);
     }
 
@@ -58,7 +58,7 @@ public class Processor extends AbstractProcessor {
     TypeElement typeElt = (TypeElement) methodElt.getEnclosingElement();
     attributeClass(typeElt);
     TreePath path = trees.getPath(methodElt);
-    Generatorizer analyzer = new Generatorizer();
+    Transpiler analyzer = new Transpiler();
     path.getCompilationUnit().getImports().forEach(import_ -> analyzer.visitImport(import_, null));
     String source = analyzer.visitMethod(path);
     try {
