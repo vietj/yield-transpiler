@@ -53,7 +53,12 @@ public class SyncTest {
     Iterable<? extends JavaFileObject> sources = fileManager.getJavaFileObjects(new File(res.toURI()));
     JavaCompiler.CompilationTask task = compiler.getTask(new PrintWriter(System.out), fileManager, diagnostics, Collections.<String>emptyList(), Collections.emptyList(), sources);
     task.setProcessors(Collections.singletonList(new Processor()));
-    assertTrue(task.call());
+    if (!task.call()) {
+      diagnostics.getDiagnostics().forEach(diagnostic -> {
+        System.out.println(diagnostic.getMessage(Locale.ENGLISH));
+      });
+      fail();
+    }
     URLClassLoader loader = new URLClassLoader(new URL[]{classes.toURI().toURL()}, Thread.currentThread().getContextClassLoader());
     Class<?> genClass = loader.loadClass("GeneratorImpl");
     Object instance = genClass.newInstance();
