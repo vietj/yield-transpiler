@@ -88,7 +88,7 @@ public class Transpiler extends TreePathScanner<Object, Object> {
 
 
     source.append("  public synctest.Generator ").append("create() {\n");
-    source.append("    class Impl implements synctest.Generator {\n");
+    source.append("    class TheGenerator extends synctest.Generator {\n");
     source.append("      public Object next(synctest.Context context) {\n");
 
     source.append("        while(true) {\n");
@@ -112,7 +112,7 @@ public class Transpiler extends TreePathScanner<Object, Object> {
     source.append("      }\n");
     source.append("    }\n");
 
-    source.append("    return new Impl();\n");
+    source.append("    return new TheGenerator();\n");
     source.append("  }\n");
     source.append("}\n");
 
@@ -130,15 +130,31 @@ public class Transpiler extends TreePathScanner<Object, Object> {
   public Object visitVariable(VariableTree node, Object o) {
     variables.add(node);
     if (node.getInitializer() != null) {
-      currentFrame.append(node.getName() + " = " + node.getInitializer() + ";");
+      Frame frame = currentFrame;
+      o = super.visitVariable(node, o);
+      if (frame == currentFrame) {
+        frame.append(node.getName() + " = " + node.getInitializer() + ";");
+      } else {
+        currentFrame.statements.add((padding, buffer) -> {
+          buffer.append(padding).append(node.getName()).append(" = context.getArgument();\n");
+        });
+      }
     }
-    return super.visitVariable(node, o);
+    return o;
   }
 
   @Override
   public Object visitAssignment(AssignmentTree node, Object o) {
-    currentFrame.append(node.toString() + ";");
-    return super.visitAssignment(node, o);
+    Frame frame = this.currentFrame;
+    o = super.visitAssignment(node, o);
+    if (frame == currentFrame) {
+      frame.append(node.toString() + ";");
+    } else {
+      currentFrame.statements.add((padding, buffer) -> {
+        buffer.append(padding).append(node.getVariable()).append(" = context.getArgument();\n");
+      });
+    }
+    return o;
   }
 
   @Override
@@ -263,7 +279,7 @@ public class Transpiler extends TreePathScanner<Object, Object> {
             }
             currentFrame.next = newFrame();
             currentFrame = currentFrame.next;
-            return o;
+            return "YIELD";
           }
         }
       }

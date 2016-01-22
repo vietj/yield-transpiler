@@ -5,7 +5,8 @@ package synctest;
  */
 public class Helper {
 
-  public static void yield() {
+  public static <T> T yield() {
+    throw new UnsupportedOperationException("Should never be invoked directly");
   }
 
   public static void yield(Object value) {

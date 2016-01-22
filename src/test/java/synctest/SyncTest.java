@@ -11,6 +11,7 @@ import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 import java.io.File;
 import java.io.PrintWriter;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.Charset;
@@ -19,6 +20,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Supplier;
 
 import static org.junit.Assert.*;
 
@@ -36,7 +38,8 @@ public class SyncTest {
     output = new ArrayList<>();
   }
 
-  private Generator compile(String fqn) throws Exception {
+
+  private Supplier<Generator> compile(String fqn) throws Exception {
 
     File classes = new File(new File("target"), fqn);
     assertTrue(classes.exists() ? classes.isDirectory() : classes.mkdirs());
@@ -62,113 +65,139 @@ public class SyncTest {
     URLClassLoader loader = new URLClassLoader(new URL[]{classes.toURI().toURL()}, Thread.currentThread().getContextClassLoader());
     Class<?> genClass = loader.loadClass("GeneratorImpl");
     Object instance = genClass.newInstance();
-    return (Generator) genClass.getMethod("create").invoke(instance);
+    return () -> {
+      try {
+        return (Generator) genClass.getMethod("create").invoke(instance);
+      } catch (Exception e) {
+        throw new UndeclaredThrowableException(e);
+      }
+    };
   }
 
   @Test
   public void testSuspendResume() throws Exception {
-    Generator it = compile("test_suspend_resume.A");
-    Context context = new Context();
-    it.next(context);
+    Supplier<Generator> test = compile("test_suspend_resume.A");
+    Generator it = test.get();
+    it.next();
     assertEquals(Arrays.asList("foo"), output);
-    it.next(context);
+    it.next();
     assertEquals(Arrays.asList("foo", "bar"), output);
   }
 
   @Test
   public void testYieldInIf() throws Exception {
-    Generator it = compile("test_yield_in_if.A");
-    Context context = new Context();
+    Supplier<Generator> test = compile("test_yield_in_if.A");
+    Generator it = test.get();
     value = "one";
-    it.next(context);
+    it.next();
     assertEquals(Arrays.asList("before", "foo"), output);
-    it.next(context);
+    it.next();
     assertEquals(Arrays.asList("before", "foo", "bar", "after"), output);
     output.clear();
-    context = new Context();
+    it = test.get();
     value = null;
-    it.next(context);
+    it.next();
     assertEquals(Arrays.asList("before", "after"), output);
   }
 
   @Test
   public void testYieldInIfElse() throws Exception {
-    Generator it = compile("test_yield_in_if_else.A");
-    Context context = new Context();
+    Supplier<Generator> test = compile("test_yield_in_if_else.A");
+    Generator it = test.get();
     value = "one";
-    it.next(context);
+    it.next();
     assertEquals(Arrays.asList("before", "foo"), output);
-    it.next(context);
+    it.next();
     assertEquals(Arrays.asList("before", "foo", "bar", "after"), output);
-    context = new Context();
+    it = test.get();
     output.clear();
     value = null;
-    it.next(context);
+    it.next();
     assertEquals(Arrays.asList("before", "juu", "after"), output);
   }
 
   @Test
   public void testYieldInIfYieldInElse() throws Exception {
-    Generator it = compile("test_yield_in_if_yield_in_else.A");
-    Context context = new Context();
+    Supplier<Generator> test = compile("test_yield_in_if_yield_in_else.A");
+    Generator it = test.get();
     value = "one";
-    it.next(context);
+    it.next();
     assertEquals(Arrays.asList("before", "foo"), output);
-    it.next(context);
+    it.next();
     assertEquals(Arrays.asList("before", "foo", "bar", "after"), output);
-    context = new Context();
+    it = test.get();
     output.clear();
     value = null;
-    it.next(context);
+    it.next();
     assertEquals(Arrays.asList("before", "juu"), output);
-    it.next(context);
+    it.next();
     assertEquals(Arrays.asList("before", "juu", "daa", "after"), output);
   }
 
   @Test
   public void testYieldInFor() throws Exception {
-    Generator it = compile("test_yield_in_for.A");
-    Context context = new Context();
-    it.next(context);
+    Supplier<Generator> test = compile("test_yield_in_for.A");
+    Generator it = test.get();
+    it.next();
     assertEquals(Arrays.asList("before", "<-0"), output);
-    it.next(context);
+    it.next();
     assertEquals(Arrays.asList("before", "<-0", "->0", "<-1"), output);
-    it.next(context);
+    it.next();
     assertEquals(Arrays.asList("before", "<-0", "->0", "<-1", "->1", "<-2"), output);
-    it.next(context);
+    it.next();
     assertEquals(Arrays.asList("before", "<-0", "->0", "<-1", "->1", "<-2", "->2", "after"), output);
   }
 
   @Test
   public void testFor() throws Exception {
-    Generator it = compile("test_for.A");
-    Context context = new Context();
-    it.next(context);
+    Supplier<Generator> test = compile("test_for.A");
+    Generator it = test.get();
+    it.next();
     assertEquals(Arrays.asList("before", "<-0", "->0", "<-1", "->1", "<-2", "->2", "after"), output);
   }
 
   @Test
   public void testYieldInIfInFor() throws Exception {
-    Generator it = compile("test_yield_if_in_for.A");
-    Context context = new Context();
-    it.next(context);
+    Supplier<Generator> test = compile("test_yield_if_in_for.A");
+    Generator it = test.get();
+    it.next();
     assertEquals(Arrays.asList("before", "<-0", "->0", "<-1"), output);
-    it.next(context);
+    it.next();
     assertEquals(Arrays.asList("before", "<-0", "->0", "<-1", "->1", "<-2", "->2", "after"), output);
   }
 
   @Test
   public void testDeclareVariable() throws Exception {
-    Generator it = compile("test_declare_variable.A");
-    Context context = new Context();
-    it.next(context);
+    Supplier<Generator> test = compile("test_declare_variable.A");
+    Generator it = test.get();
+    it.next();
     assertEquals(Arrays.asList("0"), output);
   }
 
   @Test
   public void testYieldReturn() throws Exception {
-    Generator it = compile("test_yield_return.A");
-    Context context = new Context();
-    assertEquals("the_return_value", it.next(context));
+    Supplier<Generator> test = compile("test_yield_return.A");
+    Generator it = test.get();
+    assertEquals("the_return_value", it.next());
+  }
+
+  @Test
+  public void testYieldArgumentInVariable() throws Exception {
+    Supplier<Generator> test = compile("test_yield_argument_in_variable.A");
+    Generator it = test.get();
+    it.next();
+    assertEquals(Arrays.asList(), output);
+    it.next("the_argument_value");
+    assertEquals(Arrays.asList("the_argument_value"), output);
+  }
+
+  @Test
+  public void testYieldArgumentInAssign() throws Exception {
+    Supplier<Generator> test = compile("test_yield_argument_in_assign.A");
+    Generator it = test.get();
+    it.next();
+    assertEquals(Arrays.asList(), output);
+    it.next("the_argument_value");
+    assertEquals(Arrays.asList("the_argument_value"), output);
   }
 }
