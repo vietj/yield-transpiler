@@ -8,4 +8,7 @@ public class Helper {
   public static void yield() {
   }
 
+  public static void yield(Object value) {
+  }
+
 }

@@ -164,4 +164,11 @@ public class SyncTest {
     it.next(context);
     assertEquals(Arrays.asList("0"), output);
   }
+
+  @Test
+  public void testYieldReturn() throws Exception {
+    Generator it = compile("test_yield_return.A");
+    Context context = new Context();
+    assertEquals("the_return_value", it.next(context));
+  }
 }

@@ -5,6 +5,6 @@ package synctest;
  */
 public interface Generator {
 
-  void next(Context ctx);
+  Object next(Context ctx);
 
 }

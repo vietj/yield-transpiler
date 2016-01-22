@@ -39,6 +39,7 @@ public class Transpiler extends TreePathScanner<Object, Object> {
     final int id;
     final List<Statement> statements;
     boolean suspend = true;
+    ExpressionTree out;
     Frame next;
 
     Frame() {
@@ -88,7 +89,7 @@ public class Transpiler extends TreePathScanner<Object, Object> {
 
     source.append("  public synctest.Generator ").append("create() {\n");
     source.append("    class Impl implements synctest.Generator {\n");
-    source.append("      public void next(synctest.Context context) {\n");
+    source.append("      public Object next(synctest.Context context) {\n");
 
     source.append("        while(true) {\n");
     source.append("          switch(context.status) {\n");
@@ -98,7 +99,12 @@ public class Transpiler extends TreePathScanner<Object, Object> {
       if (frame.next != null) {
         source.append("              context.status = ").append(frame.next.id).append(";\n");
       }
-      source.append("              ").append(frame.suspend ? "return" : "break").append(";\n");
+      if (frame.suspend) {
+        String out = frame.out != null ? frame.out.toString() : "null";
+        source.append("              return ").append(out).append(";\n");
+      } else {
+        source.append("              break;\n");
+      }
       source.append("            }\n");
     }
     source.append("          }\n");
@@ -245,16 +251,6 @@ public class Transpiler extends TreePathScanner<Object, Object> {
 
   @Override
   public Object visitMethodInvocation(MethodInvocationTree node, Object o) {
-    if (isYield(node)) {
-      currentFrame.next = newFrame();
-      currentFrame = currentFrame.next;
-    } else {
-      currentFrame.append(node.toString() + ";");
-    }
-    return o;
-  }
-
-  private boolean isYield(MethodInvocationTree node) {
     ExpressionTree select = node.getMethodSelect();
     if (select.getKind() == Tree.Kind.MEMBER_SELECT) {
       MemberSelectTree memberSelect = (MemberSelectTree) select;
@@ -262,11 +258,17 @@ public class Transpiler extends TreePathScanner<Object, Object> {
         IdentifierTree ident = (IdentifierTree) memberSelect.getExpression();
         if (ident.getName().toString().equals("Helper")) {
           if (memberSelect.getIdentifier().toString().equals("yield")) {
-            return true;
+            if (node.getArguments().size() == 1) {
+              currentFrame.out = node.getArguments().get(0);
+            }
+            currentFrame.next = newFrame();
+            currentFrame = currentFrame.next;
+            return o;
           }
         }
       }
     }
-    return false;
+    currentFrame.append(node.toString() + ";");
+    return o;
   }
 }
