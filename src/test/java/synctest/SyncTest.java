@@ -203,6 +203,34 @@ public class SyncTest {
   }
 
   @Test
+  public void testThrowRuntimeException() throws Exception {
+    Supplier<Generator> test = compile("test_throw_runtime_exception.A");
+    Generator it = test.get();
+    it.next();
+    assertEquals(Arrays.asList("before"), output);
+    try {
+      it.next();
+    } catch (RuntimeException e) {
+      assertEquals("the runtime exception", e.getMessage());
+    }
+    assertEquals(Arrays.asList("before"), output);
+  }
+
+  @Test
+  public void testThrowRuntimeExceptionInIf() throws Exception {
+    Supplier<Generator> test = compile("test_throw_runtime_exception_in_if.A");
+    Generator it = test.get();
+    it.next();
+    assertEquals(Arrays.asList("before"), output);
+    try {
+      it.next();
+    } catch (RuntimeException e) {
+      assertEquals("the runtime exception", e.getMessage());
+    }
+    assertEquals(Arrays.asList("before"), output);
+  }
+
+  @Test
   public void testAsyncCallback() throws Exception {
     Supplier<Generator> test = compile("test_async_callback.A");
     Generator it = test.get();

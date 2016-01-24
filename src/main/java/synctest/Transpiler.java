@@ -9,6 +9,7 @@ import com.sun.source.tree.ImportTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.ThrowTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
@@ -39,6 +40,7 @@ public class Transpiler extends TreePathScanner<Object, Object> {
     final int id;
     final List<Statement> statements;
     boolean suspend = true;
+    ThrowTree throwing;
     ExpressionTree out;
     Frame next;
 
@@ -99,11 +101,15 @@ public class Transpiler extends TreePathScanner<Object, Object> {
       if (frame.next != null) {
         source.append("              context.status = ").append(frame.next.id).append(";\n");
       }
-      if (frame.suspend) {
-        String out = frame.out != null ? frame.out.toString() : "null";
-        source.append("              return ").append(out).append(";\n");
+      if (frame.throwing == null) {
+        if (frame.suspend) {
+          String out = frame.out != null ? frame.out.toString() : "null";
+          source.append("              return ").append(out).append(";\n");
+        } else {
+          source.append("              break;\n");
+        }
       } else {
-        source.append("              break;\n");
+        source.append("              ").append(frame.throwing).append("\n");
       }
       source.append("            }\n");
     }
@@ -262,6 +268,12 @@ public class Transpiler extends TreePathScanner<Object, Object> {
       initializerFrame.next = current;
     }
 
+    return o;
+  }
+
+  @Override
+  public Object visitThrow(ThrowTree node, Object o) {
+    currentFrame.throwing = node;
     return o;
   }
 
