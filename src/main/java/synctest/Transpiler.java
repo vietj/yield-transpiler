@@ -153,13 +153,9 @@ public class Transpiler extends TreePathScanner<Object, Object> {
     variables.add(node);
     if (node.getInitializer() != null) {
       Frame frame = currentFrame;
-      o = super.visitVariable(node, o);
+      o = super.visitVariable(node, node);
       if (frame == currentFrame) {
         frame.append(node.getName() + " = " + node.getInitializer() + ";");
-      } else {
-        currentFrame.statements.add((padding, buffer) -> {
-          buffer.append(padding).append(node.getName()).append(" = context.getArgument();\n");
-        });
       }
     }
     return o;
@@ -168,13 +164,9 @@ public class Transpiler extends TreePathScanner<Object, Object> {
   @Override
   public Object visitAssignment(AssignmentTree node, Object o) {
     Frame frame = this.currentFrame;
-    o = super.visitAssignment(node, o);
+    o = super.visitAssignment(node, node);
     if (frame == currentFrame) {
       frame.append(node.toString() + ";");
-    } else {
-      currentFrame.statements.add((padding, buffer) -> {
-        buffer.append(padding).append(node.getVariable()).append(" = context.getArgument();\n");
-      });
     }
     return o;
   }
@@ -310,7 +302,21 @@ public class Transpiler extends TreePathScanner<Object, Object> {
             currentFrame.exit = Exit.SUSPEND;
             currentFrame.next = newFrame();
             currentFrame = currentFrame.next;
-            return "YIELD";
+
+            if (o instanceof VariableTree) {
+              VariableTree variableTree = (VariableTree) o;
+              currentFrame.statements.add((padding, buffer) -> {
+                buffer.append(padding).append(variableTree.getName()).append(" = context.resume();\n");
+              });
+            } else if (o instanceof AssignmentTree) {
+              AssignmentTree assignmentTree = (AssignmentTree) o;
+              currentFrame.statements.add((padding, buffer) -> {
+                buffer.append(padding).append(assignmentTree.getVariable()).append(" = context.resume();\n");
+              });
+            } else {
+              currentFrame.append("context.resume();\n");
+            }
+            return null;
           }
         }
       }

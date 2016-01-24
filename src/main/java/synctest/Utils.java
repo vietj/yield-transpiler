@@ -8,6 +8,14 @@ import java.util.List;
  */
 class Utils {
 
+  static void uncheckedThrow(Throwable throwable) {
+    Utils.<RuntimeException>throwIt(throwable);
+  }
+
+  private static <T extends Throwable> void throwIt(Throwable throwable) throws T {
+    throw (T)throwable;
+  }
+
   static List<String> splitBySep(String s) {
     String sep = System.getProperty("line.separator");
     List<String> list = new ArrayList<>();

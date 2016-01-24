@@ -291,6 +291,22 @@ public class SyncTest {
   }
 
   @Test
+  public void testFail() throws Exception {
+    Supplier<Generator> test = compile("test_fail.A");
+    Generator it = test.get();
+    assertEquals(null, it.next());
+    assertEquals(Arrays.asList("before"), output);
+    RuntimeException cause = new RuntimeException();
+    try {
+      assertEquals(null, it.fail(cause));
+      fail();
+    } catch (RuntimeException e) {
+      assertSame(cause, e);
+    }
+    assertEquals(Arrays.asList("before"), output);
+  }
+
+  @Test
   public void testAsyncCallback() throws Exception {
     Supplier<Generator> test = compile("test_async_callback.A");
     Generator it = test.get();

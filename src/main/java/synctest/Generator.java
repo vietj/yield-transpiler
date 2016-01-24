@@ -23,5 +23,17 @@ public abstract class Generator {
     return next(context);
   }
 
+  public Object fail(Throwable cause) {
+    if (context.status == 0) {
+      throw new IllegalStateException("Not started");
+    }
+    if (context.status == -1) {
+      throw new IllegalStateException("Done");
+    }
+    context.argument = cause;
+    context.failed = true;
+    return next(context);
+  }
+
   protected abstract Object next(GeneratorContext context);
 }
