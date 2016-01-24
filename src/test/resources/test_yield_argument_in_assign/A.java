@@ -1,14 +1,14 @@
 package test_yield_argument_in_assign;
 
-import synctest.Helper;
-import synctest.Transpile;
+import synctest.Flow;
+import synctest.GeneratorFunction;
 import synctest.SyncTest;
 
 public class A {
-  @Transpile
+  @GeneratorFunction
   public void sync() {
     String value;
-    value = Helper.yield();
+    value = Flow.yield();
     SyncTest.output.add(value);
   }
 }

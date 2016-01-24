@@ -1,12 +1,11 @@
 package test_return;
 
-import synctest.Helper;
-import synctest.Transpile;
-import synctest.SyncTest;
+import synctest.Flow;
+import synctest.GeneratorFunction;
 
 public class A {
-  @Transpile
+  @GeneratorFunction
   public void sync() {
-    Helper.yield("the_return_value");
+    Flow.yield("the_return_value");
   }
 }

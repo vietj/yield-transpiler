@@ -5,10 +5,10 @@ package synctest;
  */
 public abstract class Generator {
 
-  private final Context context;
+  private final GeneratorContext context;
 
   public Generator() {
-    this.context = new Context();
+    this.context = new GeneratorContext();
   }
 
   public Object next() {
@@ -23,5 +23,5 @@ public abstract class Generator {
     return next(context);
   }
 
-  protected abstract Object next(Context context);
+  protected abstract Object next(GeneratorContext context);
 }

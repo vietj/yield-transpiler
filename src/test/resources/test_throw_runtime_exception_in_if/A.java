@@ -1,15 +1,15 @@
 package test_throw_runtime_exception_in_if;
 
-import synctest.Helper;
-import synctest.Transpile;
+import synctest.Flow;
+import synctest.GeneratorFunction;
 import synctest.SyncTest;
 
 public class A {
-  @Transpile
+  @GeneratorFunction
   public void sync() {
     SyncTest.output.add("before");
     if (true) {
-      Helper.yield();
+      Flow.yield();
       throw new RuntimeException("the runtime exception");
     }
     SyncTest.output.add("after");

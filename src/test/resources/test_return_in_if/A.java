@@ -1,15 +1,15 @@
 package test_return_in_if;
 
-import synctest.Helper;
-import synctest.Transpile;
+import synctest.Flow;
+import synctest.GeneratorFunction;
 import synctest.SyncTest;
 
 public class A {
-  @Transpile
+  @GeneratorFunction
   public String sync() {
     SyncTest.output.add("before");
     if (true) {
-      String a = Helper.yield();
+      String a = Flow.yield();
       return a;
     }
     SyncTest.output.add("after");

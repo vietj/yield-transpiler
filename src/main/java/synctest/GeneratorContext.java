@@ -3,7 +3,7 @@ package synctest;
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
-public class Context {
+public class GeneratorContext {
 
   public int status;
   Object argument;
@@ -14,5 +14,4 @@ public class Context {
     argument = null;
     return ret;
   }
-
 }

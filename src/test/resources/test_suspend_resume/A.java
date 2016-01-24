@@ -1,14 +1,14 @@
 package test_suspend_resume;
 
-import synctest.Helper;
-import synctest.Transpile;
+import synctest.Flow;
+import synctest.GeneratorFunction;
 import synctest.SyncTest;
 
 public class A {
-  @Transpile
+  @GeneratorFunction
   public void sync() {
     SyncTest.output.add("foo");
-    Helper.yield();
+    Flow.yield();
     SyncTest.output.add("bar");
   }
 }

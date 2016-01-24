@@ -96,7 +96,7 @@ public class Transpiler extends TreePathScanner<Object, Object> {
 
     source.append("  public synctest.Generator ").append("create() {\n");
     source.append("    class TheGenerator extends synctest.Generator {\n");
-    source.append("      public Object next(synctest.Context context) {\n");
+    source.append("      public Object next(synctest.GeneratorContext context) {\n");
 
     source.append("        while(true) {\n");
     source.append("          switch(context.status) {\n");
@@ -302,7 +302,7 @@ public class Transpiler extends TreePathScanner<Object, Object> {
       MemberSelectTree memberSelect = (MemberSelectTree) select;
       if (memberSelect.getExpression().getKind() == Tree.Kind.IDENTIFIER) {
         IdentifierTree ident = (IdentifierTree) memberSelect.getExpression();
-        if (ident.getName().toString().equals("Helper")) {
+        if (ident.getName().toString().equals("Flow")) {
           if (memberSelect.getIdentifier().toString().equals("yield")) {
             if (node.getArguments().size() == 1) {
               currentFrame.out = node.getArguments().get(0);

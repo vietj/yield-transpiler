@@ -1,14 +1,14 @@
 package test_throw_runtime_exception;
 
-import synctest.Helper;
-import synctest.Transpile;
+import synctest.Flow;
+import synctest.GeneratorFunction;
 import synctest.SyncTest;
 
 public class A {
-  @Transpile
+  @GeneratorFunction
   public void sync() {
     SyncTest.output.add("before");
-    Helper.yield();
+    Flow.yield();
     throw new RuntimeException("the runtime exception");
   }
 }

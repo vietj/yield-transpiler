@@ -1,14 +1,14 @@
 package test_return;
 
-import synctest.Helper;
-import synctest.Transpile;
+import synctest.Flow;
+import synctest.GeneratorFunction;
 import synctest.SyncTest;
 
 public class A {
-  @Transpile
+  @GeneratorFunction
   public String sync() {
     SyncTest.output.add("before");
-    Helper.yield();
+    Flow.yield();
     return "the_returned_string";
   }
 }
