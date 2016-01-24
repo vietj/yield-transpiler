@@ -81,5 +81,6 @@ public class MyClass {
 
 ### Todo
 
-- fail
 - function parameters
+- try / catch / block
+- while
