@@ -9,6 +9,7 @@ import com.sun.source.tree.ImportTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.ThrowTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
@@ -35,12 +36,16 @@ public class Transpiler extends TreePathScanner<Object, Object> {
     void render(String padding, StringBuilder buffer);
   }
 
+  enum Exit {
+    SUSPEND, THROW, CONTINUE, RETURN
+  }
+
   private class Frame {
 
     final int id;
     final List<Statement> statements;
-    boolean suspend = true;
-    ThrowTree throwing;
+    Exit exit = Exit.CONTINUE;
+    ExpressionTree exitExpr;
     ExpressionTree out;
     Frame next;
 
@@ -98,18 +103,29 @@ public class Transpiler extends TreePathScanner<Object, Object> {
     for (Frame frame : frames.values()) {
       source.append("            case ").append(frame.id).append(": {\n");
       frame.render(source);
-      if (frame.next != null) {
-        source.append("              context.status = ").append(frame.next.id).append(";\n");
-      }
-      if (frame.throwing == null) {
-        if (frame.suspend) {
+      switch (frame.exit) {
+        case SUSPEND:
+          source.append("              context.status = ").append(frame.next.id).append(";\n");
           String out = frame.out != null ? frame.out.toString() : "null";
           source.append("              return ").append(out).append(";\n");
-        } else {
-          source.append("              break;\n");
-        }
-      } else {
-        source.append("              ").append(frame.throwing).append("\n");
+          break;
+        case CONTINUE:
+          if (frame.next != null) {
+            source.append("              context.status = ").append(frame.next.id).append(";\n");
+            source.append("              break;\n");
+          } else {
+            source.append("              context.status = -1;\n");
+            source.append("              return null;\n");
+          }
+          break;
+        case RETURN:
+          source.append("              context.status = -1;\n");
+          source.append("              return ").append(frame.exitExpr).append(";\n");
+          break;
+        case THROW:
+          source.append("              context.status = -1;\n");
+          source.append("              throw ").append(frame.exitExpr).append(";\n");
+          break;
       }
       source.append("            }\n");
     }
@@ -177,7 +193,6 @@ public class Transpiler extends TreePathScanner<Object, Object> {
 
       Frame next = newFrame();
 
-      abc.suspend = false;
       abc.next = next;
 
       int afterIf = next.id;
@@ -189,7 +204,6 @@ public class Transpiler extends TreePathScanner<Object, Object> {
         if (elseFrame != currentFrame) {
           elseFrame = currentFrame;
         }
-        elseFrame.suspend = false;
         elseFrame.next = next;
       }
 
@@ -224,7 +238,6 @@ public class Transpiler extends TreePathScanner<Object, Object> {
 
     if (current != currentFrame) {
 
-      initializerFrame.suspend = false;
       initializerFrame.next = current;
 
       node.getInitializer().forEach(initializer -> {
@@ -250,7 +263,6 @@ public class Transpiler extends TreePathScanner<Object, Object> {
         currentFrame.append(update.toString() + ";");
       });
 
-      currentFrame.suspend = false;
       currentFrame.next = current;
 
       currentFrame = afterFrame;
@@ -262,9 +274,7 @@ public class Transpiler extends TreePathScanner<Object, Object> {
         Utils.splitBySep(node.toString()).forEach(line -> {
           buffer.append(padding).append(line).append("\n");
         });
-
       });
-      initializerFrame.suspend = false;
       initializerFrame.next = current;
     }
 
@@ -273,7 +283,15 @@ public class Transpiler extends TreePathScanner<Object, Object> {
 
   @Override
   public Object visitThrow(ThrowTree node, Object o) {
-    currentFrame.throwing = node;
+    currentFrame.exit = Exit.THROW;
+    currentFrame.exitExpr = node.getExpression();
+    return o;
+  }
+
+  @Override
+  public Object visitReturn(ReturnTree node, Object o) {
+    currentFrame.exit = Exit.RETURN;
+    currentFrame.exitExpr = node.getExpression();
     return o;
   }
 
@@ -289,6 +307,7 @@ public class Transpiler extends TreePathScanner<Object, Object> {
             if (node.getArguments().size() == 1) {
               currentFrame.out = node.getArguments().get(0);
             }
+            currentFrame.exit = Exit.SUSPEND;
             currentFrame.next = newFrame();
             currentFrame = currentFrame.next;
             return "YIELD";

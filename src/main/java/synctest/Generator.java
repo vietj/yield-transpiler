@@ -12,10 +12,13 @@ public abstract class Generator {
   }
 
   public Object next() {
-    return next(context);
+    return next((Object) null);
   }
 
   public Object next(Object o) {
+    if (context.status == -1) {
+      throw new IllegalStateException("Done");
+    }
     context.argument = o;
     return next(context);
   }

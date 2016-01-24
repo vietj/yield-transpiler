@@ -83,6 +83,11 @@ public class SyncTest {
     assertEquals(Arrays.asList("foo"), output);
     it.next();
     assertEquals(Arrays.asList("foo", "bar"), output);
+    try {
+      it.next();
+      fail();
+    } catch (IllegalStateException ignore) {
+    }
   }
 
   @Test
@@ -214,6 +219,11 @@ public class SyncTest {
       assertEquals("the runtime exception", e.getMessage());
     }
     assertEquals(Arrays.asList("before"), output);
+    try {
+      it.next();
+      fail();
+    } catch (IllegalStateException ignore) {
+    }
   }
 
   @Test
@@ -228,6 +238,56 @@ public class SyncTest {
       assertEquals("the runtime exception", e.getMessage());
     }
     assertEquals(Arrays.asList("before"), output);
+    try {
+      it.next();
+      fail();
+    } catch (IllegalStateException ignore) {
+    }
+  }
+
+  @Test
+  public void testReturn() throws Exception {
+    Supplier<Generator> test = compile("test_return.A");
+    Generator it = test.get();
+    assertEquals(null, it.next());
+    assertEquals(Arrays.asList("before"), output);
+    assertEquals("the_returned_string", it.next());
+    assertEquals(Arrays.asList("before"), output);
+    try {
+      it.next();
+      fail();
+    } catch (IllegalStateException ignore) {
+    }
+  }
+
+  @Test
+  public void testReturnInIf() throws Exception {
+    Supplier<Generator> test = compile("test_return_in_if.A");
+    Generator it = test.get();
+    assertEquals(null, it.next());
+    assertEquals(Arrays.asList("before"), output);
+    assertEquals("the_yielded_string", it.next("the_yielded_string"));
+    assertEquals(Arrays.asList("before"), output);
+    try {
+      it.next();
+      fail();
+    } catch (IllegalStateException ignore) {
+    }
+  }
+
+  @Test
+  public void testReturnInFor() throws Exception {
+    Supplier<Generator> test = compile("test_return_in_for.A");
+    Generator it = test.get();
+    assertEquals(null, it.next());
+    assertEquals(Arrays.asList("before"), output);
+    assertEquals("the_yielded_string", it.next("the_yielded_string"));
+    assertEquals(Arrays.asList("before"), output);
+    try {
+      it.next();
+      fail();
+    } catch (IllegalStateException ignore) {
+    }
   }
 
   @Test
