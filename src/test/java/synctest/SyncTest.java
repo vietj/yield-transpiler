@@ -33,6 +33,10 @@ public class SyncTest {
   public static String value;
   public static List<String> output;
 
+  public static void fail() {
+    throw new RuntimeException();
+  }
+
   @Before
   public void before() {
     value = null;
@@ -304,6 +308,59 @@ public class SyncTest {
       assertSame(cause, e);
     }
     assertEquals(Arrays.asList("before"), output);
+  }
+
+  @Test
+  public void testTry() throws Exception {
+    Supplier<Generator> test = compile("test_try.A");
+  }
+
+  @Test
+  public void testTryFailBeforeYield() throws Exception {
+    Supplier<Generator> test = compile("test_try_fail_before_yield.A");
+    Generator it = test.get();
+    it.next();
+    assertEquals(Arrays.asList("before", "failed", "after"), output);
+  }
+
+  @Test
+  public void testTryFailAfterYield() throws Exception {
+    Supplier<Generator> test = compile("test_try_fail_after_yield.A");
+    Generator it = test.get();
+    it.next();
+    assertEquals(Arrays.asList("before"), output);
+    it.next();
+    assertEquals(Arrays.asList("before", "failed", "after"), output);
+  }
+
+  @Test
+  public void testTryFailBeforeYieldInTry() throws Exception {
+    Supplier<Generator> test = compile("test_try_fail_before_yield_in_try.A");
+    Generator it = test.get();
+    it.next();
+    assertEquals(Arrays.asList("before 1", "before 2"), output);
+    it.next();
+    assertEquals(Arrays.asList("before 1", "before 2", "failed 2", "after 2", "after 1"), output);
+  }
+
+  @Test
+  public void testYieldInTryYieldInCatch() throws Exception {
+    Supplier<Generator> test = compile("test_yield_in_try_yield_in_catch.A");
+    Generator it = test.get();
+    it.next();
+    assertEquals(Arrays.asList("before 1", "failed 1"), output);
+    it.next();
+    assertEquals(Arrays.asList("before 1", "failed 1", "failed 2", "after 1"), output);
+  }
+
+  @Test
+  public void testYieldInCatch() throws Exception {
+    Supplier<Generator> test = compile("test_yield_in_catch.A");
+    Generator it = test.get();
+    it.next();
+    assertEquals(Arrays.asList("before", "try 1", "catch 1"), output);
+    it.next();
+    assertEquals(Arrays.asList("before", "try 1", "catch 1", "catch 2", "after"), output);
   }
 
   @Test
