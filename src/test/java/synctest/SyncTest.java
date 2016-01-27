@@ -393,6 +393,18 @@ public class SyncTest {
     assertEquals(Arrays.asList("the_callback_value"), output);
   }
 
+  @Test
+  public void testFieldRead() throws Exception {
+    Foo test = compile("test_field_read.A");
+    Generator generator = test.get();
+    assertEquals("the_value", generator.next());
+  }
+
+  @Test
+  public void testLambda() throws Exception {
+    Foo test = compile("test_lambda.A");
+  }
+
   public static Consumer<Generator> wrap(Consumer<Consumer<String>> tutu) {
     return generator -> {
       tutu.accept(event -> {

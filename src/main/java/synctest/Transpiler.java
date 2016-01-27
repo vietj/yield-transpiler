@@ -1,15 +1,24 @@
 package synctest;
 
 import com.sun.source.tree.AssignmentTree;
+import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
+import com.sun.source.tree.ConditionalExpressionTree;
 import com.sun.source.tree.ExpressionStatementTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.ForLoopTree;
+import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.IfTree;
 import com.sun.source.tree.ImportTree;
+import com.sun.source.tree.LambdaExpressionTree;
+import com.sun.source.tree.LiteralTree;
+import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.NewArrayTree;
+import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.StatementTree;
 import com.sun.source.tree.ThrowTree;
@@ -144,7 +153,7 @@ public class Transpiler extends TreePathScanner<Object, Object> {
       switch (frame.exit) {
         case SUSPEND:
           source.append("                context.status = ").append(frame.next.id).append(";\n");
-          String out = frame.out != null ? frame.out.toString() : "null";
+          String out = frame.out != null ? render(frame.out) : "null";
           source.append("                return ").append(out).append(";\n");
           break;
         case CONTINUE:
@@ -158,11 +167,11 @@ public class Transpiler extends TreePathScanner<Object, Object> {
           break;
         case RETURN:
           source.append("                context.status = -1;\n");
-          source.append("                return ").append(frame.exitExpr).append(";\n");
+          source.append("                return ").append(render(frame.exitExpr)).append(";\n");
           break;
         case THROW:
           source.append("                context.status = -1;\n");
-          source.append("                throw ").append(frame.exitExpr).append(";\n");
+          source.append("                throw ").append(render(frame.exitExpr)).append(";\n");
           break;
       }
       source.append("              }\n");
@@ -350,22 +359,6 @@ public class Transpiler extends TreePathScanner<Object, Object> {
     return o;
   }
 
-/*
-  @Override
-  public Object visitExpressionStatement(ExpressionStatementTree node, Object o) {
-
-    ExpressionTree expr = node.getExpression();
-    if (expr instanceof AssignmentTree) {
-      AssignmentTree assignmentExpr = (AssignmentTree) expr;
-      MethodInvocationTree methodInvocationExpr = (MethodInvocationTree) assignmentExpr.getExpression();
-    } else if (expr instanceof MethodInvocationTree) {
-      MethodInvocationTree methodInvocationExpr = (MethodInvocationTree) expr;
-    }
-
-    return super.visitExpressionStatement(node, o);
-  }
-*/
-
   @Override
   public Object visitVariable(VariableTree variable, Object o) {
     variables.add(variable);
@@ -408,7 +401,12 @@ public class Transpiler extends TreePathScanner<Object, Object> {
         }
       }
     }
-    currentFrame.append(node.toString() + ";");
+    o = expr.accept(this, o);
+    if (o instanceof String) {
+      currentFrame.append(o + ";");
+    } else {
+      throw new UnsupportedOperationException("todo");
+    }
     return o;
   }
 
@@ -419,5 +417,123 @@ public class Transpiler extends TreePathScanner<Object, Object> {
     currentFrame.exit = Exit.SUSPEND;
     currentFrame.next = newFrame();
     currentFrame = currentFrame.next;
+  }
+
+  // Expression visits just render the expression and do some rewriting
+
+  private String render(ExpressionTree expr) {
+    return (String) expr.accept(this, null);
+  }
+
+  @Override
+  public String visitIdentifier(IdentifierTree node, Object o) {
+    String identifier = "" + node.getName();
+    if (identifier.equals("this")) {
+      identifier = "this_";
+    }
+    return identifier;
+  }
+
+  @Override
+  public Object visitParenthesized(ParenthesizedTree node, Object o) {
+    return "(" + node.accept(this, o) + ")";
+  }
+
+  @Override
+  public Object visitConditionalExpression(ConditionalExpressionTree node, Object o) {
+    return node.getCondition().accept(this, o) + " ? " + node.getTrueExpression().accept(this, o) + " : " + node.getFalseExpression().accept(this, o);
+  }
+
+  @Override
+  public Object visitNewClass(NewClassTree node, Object o) {
+    // no support for anonymous inner classes
+    // nor enclosing expression
+    // nor type arguments
+    StringBuilder tmp = new StringBuilder("new ").append(node.getIdentifier()).append("(");
+    for (Iterator<? extends ExpressionTree> i = node.getArguments().iterator();i.hasNext();) {
+      tmp.append(i.next().accept(this, o));
+      if (i.hasNext()) {
+        tmp.append(", ");
+      }
+    }
+    tmp.append(")");
+    return tmp.toString();
+  }
+
+  @Override
+  public Object visitMethodInvocation(MethodInvocationTree node, Object o) {
+    // no support for type arguments
+    StringBuilder tmp = new StringBuilder();
+    tmp.append(node.getMethodSelect().accept(this, o));
+    tmp.append("(");
+    for (Iterator<? extends ExpressionTree> i = node.getArguments().iterator();i.hasNext();) {
+      tmp.append(i.next().accept(this, o));
+      if (i.hasNext()) {
+        tmp.append(", ");
+      }
+    }
+    tmp.append(")");
+    return tmp.toString();
+  }
+
+  @Override
+  public Object visitMemberSelect(MemberSelectTree node, Object o) {
+    return node.getExpression().accept(this, o) + "." + node.getIdentifier();
+  }
+
+  @Override
+  public Object visitLiteral(LiteralTree node, Object o) {
+    return node.toString();
+  }
+
+  @Override
+  public Object visitNewArray(NewArrayTree node, Object o) {
+    throw new UnsupportedOperationException("todo");
+  }
+
+  @Override
+  public Object visitLambdaExpression(LambdaExpressionTree node, Object o) {
+    StringBuilder tmp = new StringBuilder("(");
+    for (Iterator<? extends VariableTree> i = node.getParameters().iterator();i.hasNext();) {
+      VariableTree variable = i.next();
+      tmp.append(variable.getName());
+      if (i.hasNext()) {
+        tmp.append(", ");
+      }
+    }
+    tmp.append(") -> ");
+    if (node.getBodyKind() == LambdaExpressionTree.BodyKind.STATEMENT) {
+      throw new UnsupportedOperationException("todo");
+    } else {
+      tmp.append(node.getBody().accept(this, o));
+    }
+    return tmp.toString();
+  }
+
+  @Override
+  public Object visitAssignment(AssignmentTree node, Object o) {
+    return node.getVariable().accept(this, o) + " = " + node.getExpression().accept(this, o);
+  }
+
+  @Override
+  public Object visitBinary(BinaryTree node, Object o) {
+    String op;
+    switch (node.getKind()) {
+      case PLUS:
+        op = "+";
+        break;
+      case MINUS:
+        op = "-";
+        break;
+      case MULTIPLY:
+        op = "*";
+        break;
+      case DIVIDE:
+        op = "/";
+        break;
+      default:
+        throw new IllegalStateException();
+    }
+    return node.getLeftOperand().accept(this, o) + " " + op + "" + node.getRightOperand().accept(this, o);
   }
 }
