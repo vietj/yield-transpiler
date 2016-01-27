@@ -21,6 +21,7 @@ import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -97,10 +98,15 @@ public class Transpiler extends TreePathScanner<Object, Object> {
   }
 
   public String visitMethod(TreePath node) {
+    return (String) scan(node, null);
+  }
+
+  @Override
+  public Object visitMethod(MethodTree node, Object o) {
     variables.clear();
     currentFrame = newFrame();
 
-    scan(node, null);
+    visitBlock(node.getBody(), o);
 
     StringBuilder source = new StringBuilder();
     source.append(imports);
@@ -111,8 +117,16 @@ public class Transpiler extends TreePathScanner<Object, Object> {
       source.append(s);
     }
 
+    source.append("  public synctest.Generator ").append(node.getName()).append("(");
+    for (Iterator<? extends VariableTree> i = node.getParameters().iterator();i.hasNext();) {
+      VariableTree param = i.next();
+      source.append(param.getType()).append(" ").append(param.getName());
+      if (i.hasNext()) {
+        source.append(", ");
+      }
+    }
+    source.append(") {\n");
 
-    source.append("  public synctest.Generator ").append("create() {\n");
     source.append("    class TheGenerator extends synctest.Generator {\n");
     source.append("      public Object next(synctest.GeneratorContext context) {\n");
 
@@ -182,14 +196,8 @@ public class Transpiler extends TreePathScanner<Object, Object> {
     source.append("  }\n");
     source.append("}\n");
 
+    //
     return source.toString();
-  }
-
-  @Override
-  public Object visitMethod(MethodTree node, Object o) {
-    o = super.visitMethod(node, o);
-
-    return o;
   }
 
   @Override

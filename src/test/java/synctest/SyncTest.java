@@ -11,6 +11,7 @@ import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 import java.io.File;
 import java.io.PrintWriter;
+import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -20,8 +21,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.*;
 
@@ -43,8 +46,13 @@ public class SyncTest {
     output = new ArrayList<>();
   }
 
+  interface Foo {
+    
+    Generator get(Object... args);
+    
+  }
 
-  private Supplier<Generator> compile(String fqn) throws Exception {
+  private Foo compile(String fqn) throws Exception {
 
     File classes = new File(new File("target"), fqn);
     assertTrue(classes.exists() ? classes.isDirectory() : classes.mkdirs());
@@ -70,9 +78,10 @@ public class SyncTest {
     URLClassLoader loader = new URLClassLoader(new URL[]{classes.toURI().toURL()}, Thread.currentThread().getContextClassLoader());
     Class<?> genClass = loader.loadClass("GeneratorImpl");
     Object instance = genClass.newInstance();
-    return () -> {
+    return (args) -> {
       try {
-        return (Generator) genClass.getMethod("create").invoke(instance);
+        Optional<Method> opt = Stream.of(genClass.getMethods()).filter(m -> m.getName().equals("sync")).findFirst();
+        return (Generator) opt.get().invoke(instance, args);
       } catch (Exception e) {
         throw new UndeclaredThrowableException(e);
       }
@@ -81,7 +90,7 @@ public class SyncTest {
 
   @Test
   public void testSuspendResume() throws Exception {
-    Supplier<Generator> test = compile("test_suspend_resume.A");
+    Foo test = compile("test_suspend_resume.A");
     Generator it = test.get();
     it.next();
     assertEquals(Arrays.asList("foo"), output);
@@ -96,7 +105,7 @@ public class SyncTest {
 
   @Test
   public void testYieldInIf() throws Exception {
-    Supplier<Generator> test = compile("test_yield_in_if.A");
+    Foo test = compile("test_yield_in_if.A");
     Generator it = test.get();
     value = "one";
     it.next();
@@ -112,7 +121,7 @@ public class SyncTest {
 
   @Test
   public void testYieldInIfElse() throws Exception {
-    Supplier<Generator> test = compile("test_yield_in_if_else.A");
+    Foo test = compile("test_yield_in_if_else.A");
     Generator it = test.get();
     value = "one";
     it.next();
@@ -128,7 +137,7 @@ public class SyncTest {
 
   @Test
   public void testYieldInIfYieldInElse() throws Exception {
-    Supplier<Generator> test = compile("test_yield_in_if_yield_in_else.A");
+    Foo test = compile("test_yield_in_if_yield_in_else.A");
     Generator it = test.get();
     value = "one";
     it.next();
@@ -146,7 +155,7 @@ public class SyncTest {
 
   @Test
   public void testYieldInFor() throws Exception {
-    Supplier<Generator> test = compile("test_yield_in_for.A");
+    Foo test = compile("test_yield_in_for.A");
     Generator it = test.get();
     it.next();
     assertEquals(Arrays.asList("before", "<-0"), output);
@@ -160,7 +169,7 @@ public class SyncTest {
 
   @Test
   public void testFor() throws Exception {
-    Supplier<Generator> test = compile("test_for.A");
+    Foo test = compile("test_for.A");
     Generator it = test.get();
     it.next();
     assertEquals(Arrays.asList("before", "<-0", "->0", "<-1", "->1", "<-2", "->2", "after"), output);
@@ -168,7 +177,7 @@ public class SyncTest {
 
   @Test
   public void testYieldInIfInFor() throws Exception {
-    Supplier<Generator> test = compile("test_yield_if_in_for.A");
+    Foo test = compile("test_yield_if_in_for.A");
     Generator it = test.get();
     it.next();
     assertEquals(Arrays.asList("before", "<-0", "->0", "<-1"), output);
@@ -178,7 +187,7 @@ public class SyncTest {
 
   @Test
   public void testDeclareVariable() throws Exception {
-    Supplier<Generator> test = compile("test_declare_variable.A");
+    Foo test = compile("test_declare_variable.A");
     Generator it = test.get();
     it.next();
     assertEquals(Arrays.asList("0"), output);
@@ -186,14 +195,14 @@ public class SyncTest {
 
   @Test
   public void testYieldReturn() throws Exception {
-    Supplier<Generator> test = compile("test_yield_return.A");
+    Foo test = compile("test_yield_return.A");
     Generator it = test.get();
     assertEquals("the_return_value", it.next());
   }
 
   @Test
   public void testYieldArgumentInVariable() throws Exception {
-    Supplier<Generator> test = compile("test_yield_argument_in_variable.A");
+    Foo test = compile("test_yield_argument_in_variable.A");
     Generator it = test.get();
     it.next();
     assertEquals(Arrays.asList(), output);
@@ -203,7 +212,7 @@ public class SyncTest {
 
   @Test
   public void testYieldArgumentInAssign() throws Exception {
-    Supplier<Generator> test = compile("test_yield_argument_in_assign.A");
+    Foo test = compile("test_yield_argument_in_assign.A");
     Generator it = test.get();
     it.next();
     assertEquals(Arrays.asList(), output);
@@ -213,7 +222,7 @@ public class SyncTest {
 
   @Test
   public void testThrowRuntimeException() throws Exception {
-    Supplier<Generator> test = compile("test_throw_runtime_exception.A");
+    Foo test = compile("test_throw_runtime_exception.A");
     Generator it = test.get();
     it.next();
     assertEquals(Arrays.asList("before"), output);
@@ -232,7 +241,7 @@ public class SyncTest {
 
   @Test
   public void testThrowRuntimeExceptionInIf() throws Exception {
-    Supplier<Generator> test = compile("test_throw_runtime_exception_in_if.A");
+    Foo test = compile("test_throw_runtime_exception_in_if.A");
     Generator it = test.get();
     it.next();
     assertEquals(Arrays.asList("before"), output);
@@ -251,7 +260,7 @@ public class SyncTest {
 
   @Test
   public void testReturn() throws Exception {
-    Supplier<Generator> test = compile("test_return.A");
+    Foo test = compile("test_return.A");
     Generator it = test.get();
     assertEquals(null, it.next());
     assertEquals(Arrays.asList("before"), output);
@@ -266,7 +275,7 @@ public class SyncTest {
 
   @Test
   public void testReturnInIf() throws Exception {
-    Supplier<Generator> test = compile("test_return_in_if.A");
+    Foo test = compile("test_return_in_if.A");
     Generator it = test.get();
     assertEquals(null, it.next());
     assertEquals(Arrays.asList("before"), output);
@@ -281,7 +290,7 @@ public class SyncTest {
 
   @Test
   public void testReturnInFor() throws Exception {
-    Supplier<Generator> test = compile("test_return_in_for.A");
+    Foo test = compile("test_return_in_for.A");
     Generator it = test.get();
     assertEquals(null, it.next());
     assertEquals(Arrays.asList("before"), output);
@@ -296,7 +305,7 @@ public class SyncTest {
 
   @Test
   public void testFail() throws Exception {
-    Supplier<Generator> test = compile("test_fail.A");
+    Foo test = compile("test_fail.A");
     Generator it = test.get();
     assertEquals(null, it.next());
     assertEquals(Arrays.asList("before"), output);
@@ -312,12 +321,12 @@ public class SyncTest {
 
   @Test
   public void testTry() throws Exception {
-    Supplier<Generator> test = compile("test_try.A");
+    Foo test = compile("test_try.A");
   }
 
   @Test
   public void testTryFailBeforeYield() throws Exception {
-    Supplier<Generator> test = compile("test_try_fail_before_yield.A");
+    Foo test = compile("test_try_fail_before_yield.A");
     Generator it = test.get();
     it.next();
     assertEquals(Arrays.asList("before", "failed", "after"), output);
@@ -325,7 +334,7 @@ public class SyncTest {
 
   @Test
   public void testTryFailAfterYield() throws Exception {
-    Supplier<Generator> test = compile("test_try_fail_after_yield.A");
+    Foo test = compile("test_try_fail_after_yield.A");
     Generator it = test.get();
     it.next();
     assertEquals(Arrays.asList("before"), output);
@@ -335,7 +344,7 @@ public class SyncTest {
 
   @Test
   public void testTryFailBeforeYieldInTry() throws Exception {
-    Supplier<Generator> test = compile("test_try_fail_before_yield_in_try.A");
+    Foo test = compile("test_try_fail_before_yield_in_try.A");
     Generator it = test.get();
     it.next();
     assertEquals(Arrays.asList("before 1", "before 2"), output);
@@ -345,7 +354,7 @@ public class SyncTest {
 
   @Test
   public void testYieldInTryYieldInCatch() throws Exception {
-    Supplier<Generator> test = compile("test_yield_in_try_yield_in_catch.A");
+    Foo test = compile("test_yield_in_try_yield_in_catch.A");
     Generator it = test.get();
     it.next();
     assertEquals(Arrays.asList("before 1", "failed 1"), output);
@@ -355,7 +364,7 @@ public class SyncTest {
 
   @Test
   public void testYieldInCatch() throws Exception {
-    Supplier<Generator> test = compile("test_yield_in_catch.A");
+    Foo test = compile("test_yield_in_catch.A");
     Generator it = test.get();
     it.next();
     assertEquals(Arrays.asList("before", "try 1", "catch 1"), output);
@@ -364,8 +373,15 @@ public class SyncTest {
   }
 
   @Test
+  public void testMethodParams() throws Exception {
+    Foo test = compile("test_method_params.A");
+    Generator generator = test.get("string_param", 3);
+    assertEquals("string_param3", generator.next());
+  }
+
+  @Test
   public void testAsyncCallback() throws Exception {
-    Supplier<Generator> test = compile("test_async_callback.A");
+    Foo test = compile("test_async_callback.A");
     Generator it = test.get();
     Consumer<Generator> consumer = (Consumer<Generator>) it.next();
     consumer.accept(it);
