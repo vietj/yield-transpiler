@@ -3,6 +3,7 @@ package synctest;
 import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
+import com.sun.source.tree.ExpressionStatementTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.ForLoopTree;
 import com.sun.source.tree.IfTree;
@@ -204,29 +205,6 @@ public class Transpiler extends TreePathScanner<Object, Object> {
   }
 
   @Override
-  public Object visitVariable(VariableTree node, Object o) {
-    variables.add(node);
-    if (node.getInitializer() != null) {
-      Frame frame = currentFrame;
-      o = super.visitVariable(node, node);
-      if (frame == currentFrame) {
-        frame.append(node.getName() + " = " + node.getInitializer() + ";");
-      }
-    }
-    return o;
-  }
-
-  @Override
-  public Object visitAssignment(AssignmentTree node, Object o) {
-    Frame frame = this.currentFrame;
-    o = super.visitAssignment(node, node);
-    if (frame == currentFrame) {
-      frame.append(node.toString() + ";");
-    }
-    return o;
-  }
-
-  @Override
   public Object visitIf(IfTree node, Object o) {
 
     Frame current = currentFrame;
@@ -372,32 +350,85 @@ public class Transpiler extends TreePathScanner<Object, Object> {
     return o;
   }
 
+/*
   @Override
-  public Object visitMethodInvocation(MethodInvocationTree node, Object o) {
-    if (Utils.isYield(node)) {
-      if (node.getArguments().size() == 1) {
-        currentFrame.out = node.getArguments().get(0);
-      }
-      currentFrame.exit = Exit.SUSPEND;
-      currentFrame.next = newFrame();
-      currentFrame = currentFrame.next;
+  public Object visitExpressionStatement(ExpressionStatementTree node, Object o) {
 
-      if (o instanceof VariableTree) {
-        VariableTree variableTree = (VariableTree) o;
+    ExpressionTree expr = node.getExpression();
+    if (expr instanceof AssignmentTree) {
+      AssignmentTree assignmentExpr = (AssignmentTree) expr;
+      MethodInvocationTree methodInvocationExpr = (MethodInvocationTree) assignmentExpr.getExpression();
+    } else if (expr instanceof MethodInvocationTree) {
+      MethodInvocationTree methodInvocationExpr = (MethodInvocationTree) expr;
+    }
+
+    return super.visitExpressionStatement(node, o);
+  }
+*/
+
+  @Override
+  public Object visitVariable(VariableTree variable, Object o) {
+    variables.add(variable);
+    if (variable.getInitializer() instanceof MethodInvocationTree) {
+      MethodInvocationTree methodInvocation = (MethodInvocationTree) variable.getInitializer();
+      if (Utils.isYield(methodInvocation)) {
+        visitYieldInvocation(methodInvocation);
         currentFrame.statements.add((padding, buffer) -> {
-          buffer.append(padding).append(variableTree.getName()).append(" = context.resume();\n");
+          buffer.append(padding).append(variable.getName()).append(" = context.resume();\n");
         });
-      } else if (o instanceof AssignmentTree) {
-        AssignmentTree assignmentTree = (AssignmentTree) o;
-        currentFrame.statements.add((padding, buffer) -> {
-          buffer.append(padding).append(assignmentTree.getVariable()).append(" = context.resume();\n");
-        });
-      } else {
-        currentFrame.append("context.resume();\n");
+        return null;
       }
-      return null;
+    }
+    if (variable.getInitializer() != null) {
+      currentFrame.append(variable.getName() + " = " + variable.getInitializer() + ";");
+    }
+    return o;
+  }
+
+  @Override
+  public Object visitExpressionStatement(ExpressionStatementTree node, Object o) {
+
+    ExpressionTree expr = node.getExpression();
+    if (expr instanceof MethodInvocationTree) {
+      MethodInvocationTree methodInvocation = (MethodInvocationTree) expr;
+      if (Utils.isYield(methodInvocation)) {
+        visitYieldInvocation(methodInvocation);
+        currentFrame.append("context.resume();\n");
+        return o;
+      }
+    } else if (expr instanceof AssignmentTree) {
+      AssignmentTree assignment = (AssignmentTree) expr;
+      if (assignment.getExpression() instanceof MethodInvocationTree) {
+        MethodInvocationTree methodInvocation = (MethodInvocationTree) assignment.getExpression();
+        if (Utils.isYield(methodInvocation)) {
+          visitYieldInvocation(methodInvocation);
+          currentFrame.statements.add((padding, buffer) -> {
+            buffer.append(padding).append(assignment.getVariable()).append(" = context.resume();\n");
+          });
+          return o;
+        }
+      }
     }
     currentFrame.append(node.toString() + ";");
     return o;
+  }
+
+  @Override
+  public Object visitAssignment(AssignmentTree node, Object o) {
+    Frame frame = this.currentFrame;
+    o = super.visitAssignment(node, node);
+    if (frame == currentFrame) {
+      frame.append(node.toString() + ";");
+    }
+    return o;
+  }
+
+  private void visitYieldInvocation(MethodInvocationTree yieldInvocation) {
+    if (yieldInvocation.getArguments().size() == 1) {
+      currentFrame.out = yieldInvocation.getArguments().get(0);
+    }
+    currentFrame.exit = Exit.SUSPEND;
+    currentFrame.next = newFrame();
+    currentFrame = currentFrame.next;
   }
 }
