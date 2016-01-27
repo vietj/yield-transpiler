@@ -82,5 +82,4 @@ public class MyClass {
 ### Todo
 
 - function parameters
-- try / catch / block
 - while
