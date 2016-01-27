@@ -387,7 +387,6 @@ public class Transpiler extends TreePathScanner<Object, Object> {
 
   @Override
   public Object visitExpressionStatement(ExpressionStatementTree node, Object o) {
-
     ExpressionTree expr = node.getExpression();
     if (expr instanceof MethodInvocationTree) {
       MethodInvocationTree methodInvocation = (MethodInvocationTree) expr;
@@ -410,16 +409,6 @@ public class Transpiler extends TreePathScanner<Object, Object> {
       }
     }
     currentFrame.append(node.toString() + ";");
-    return o;
-  }
-
-  @Override
-  public Object visitAssignment(AssignmentTree node, Object o) {
-    Frame frame = this.currentFrame;
-    o = super.visitAssignment(node, node);
-    if (frame == currentFrame) {
-      frame.append(node.toString() + ";");
-    }
     return o;
   }
 
