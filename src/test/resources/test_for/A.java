@@ -1,4 +1,4 @@
-package test_yield_in_for;
+package test_for;
 
 import synctest.GeneratorFunction;
 import synctest.SyncTest;

@@ -76,7 +76,7 @@ public class SyncTest {
       fail();
     }
     URLClassLoader loader = new URLClassLoader(new URL[]{classes.toURI().toURL()}, Thread.currentThread().getContextClassLoader());
-    Class<?> genClass = loader.loadClass("GeneratorImpl");
+    Class<?> genClass = loader.loadClass(fqn + "_");
     Object instance = genClass.newInstance();
     return (args) -> {
       try {

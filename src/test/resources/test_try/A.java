@@ -1,4 +1,4 @@
-package test_try_fail_after_yield;
+package test_try;
 
 import synctest.Flow;
 import synctest.GeneratorFunction;

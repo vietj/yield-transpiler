@@ -1,23 +1,19 @@
 package synctest;
 
 import com.sun.source.tree.AssignmentTree;
-import com.sun.source.tree.BlockTree;
-import com.sun.source.tree.CatchTree;
+import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.ForLoopTree;
-import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.IfTree;
 import com.sun.source.tree.ImportTree;
-import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.StatementTree;
 import com.sun.source.tree.ThrowTree;
-import com.sun.source.tree.Tree;
 import com.sun.source.tree.TryTree;
 import com.sun.source.tree.VariableTree;
-import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 
 import java.util.ArrayList;
@@ -31,15 +27,18 @@ import java.util.Map;
  */
 public class Transpiler extends TreePathScanner<Object, Object> {
 
+  private StringBuilder source = new StringBuilder();
   private final List<VariableTree> variables = new ArrayList<>();
-  private final StringBuilder imports = new StringBuilder();
   private Map<Integer, Frame> frames = new LinkedHashMap<>();
   private int frameCounter = 0;
   private Frame currentFrame;
   private int tryCounter = 0;
   private int currentTry;
   private Map<Integer, Map<String, Frame>> catchMapping = new LinkedHashMap<>();
-  private int catchCounter = 0;
+
+  public String getSource() {
+    return source.toString() + "}\n";
+  }
 
   private interface Statement {
     void render(String padding, StringBuilder buffer);
@@ -91,14 +90,18 @@ public class Transpiler extends TreePathScanner<Object, Object> {
   }
 
   @Override
-  public Object visitImport(ImportTree node, Object o) {
-    imports.append("import ").append(node.getQualifiedIdentifier()).append(";\n");
-//    return super.visitImport(node, v);
+  public Object visitCompilationUnit(CompilationUnitTree node, Object o) {
+    source.append("package ").append(node.getPackageName()).append(";\n");
+    node.getImports().forEach(import_ -> visitImport(import_, null));
+    ClassTree decl = (ClassTree) node.getTypeDecls().get(0);
+    source.append("public class ").append(decl.getSimpleName()).append("_ {\n");
     return null;
   }
 
-  public String visitMethod(TreePath node) {
-    return (String) scan(node, null);
+  @Override
+  public Object visitImport(ImportTree node, Object o) {
+    source.append("import ").append(node.getQualifiedIdentifier()).append(";\n");
+    return null;
   }
 
   @Override
@@ -107,10 +110,6 @@ public class Transpiler extends TreePathScanner<Object, Object> {
     currentFrame = newFrame();
 
     visitBlock(node.getBody(), o);
-
-    StringBuilder source = new StringBuilder();
-    source.append(imports);
-    source.append("public class ").append("GeneratorImpl").append(" {\n");
 
     source.append("  public synctest.Generator ").append(node.getName()).append("(");
     for (Iterator<? extends VariableTree> i = node.getParameters().iterator();i.hasNext();) {
@@ -195,7 +194,6 @@ public class Transpiler extends TreePathScanner<Object, Object> {
 
     source.append("    return new TheGenerator();\n");
     source.append("  }\n");
-    source.append("}\n");
 
     //
     return source.toString();

@@ -20,6 +20,8 @@ import javax.tools.JavaFileObject;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -45,31 +47,32 @@ public class Processor extends AbstractProcessor {
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-
+    Map<TypeElement, Transpiler> transpilers = new HashMap<>();
     for (Element elt : roundEnv.getElementsAnnotatedWith(GeneratorFunction.class)) {
-      process((ExecutableElement) elt);
+      ExecutableElement methodElt = (ExecutableElement) elt;
+      TypeElement typeElt = (TypeElement) methodElt.getEnclosingElement();
+      Transpiler transpiler = transpilers.computeIfAbsent(typeElt, t -> {
+        attributeClass(typeElt);
+        Transpiler tr = new Transpiler();
+        TreePath path = trees.getPath(typeElt);
+        tr.scan(path.getCompilationUnit(), null);
+        return tr;
+      });
+      TreePath path = trees.getPath(methodElt);
+      transpiler.scan(path, null);
     }
-
-
-    return false;
-  }
-
-  private void process(ExecutableElement methodElt) {
-    TypeElement typeElt = (TypeElement) methodElt.getEnclosingElement();
-    attributeClass(typeElt);
-    TreePath path = trees.getPath(methodElt);
-    Transpiler analyzer = new Transpiler();
-    path.getCompilationUnit().getImports().forEach(import_ -> analyzer.visitImport(import_, null));
-    String source = analyzer.visitMethod(path);
-    try {
-      JavaFileObject generator = processingEnv.getFiler().createSourceFile("GeneratorImpl", methodElt);
-      try (Writer writer = generator.openWriter()) {
-        writer.write(source);
+    transpilers.forEach((typeElt, transpiler) -> {
+      try {
+        JavaFileObject generator = processingEnv.getFiler().createSourceFile(typeElt.getQualifiedName() + "_", typeElt);
+        try (Writer writer = generator.openWriter()) {
+          writer.write(transpiler.getSource());
+        }
+      } catch (IOException e) {
+        e.printStackTrace();
+        processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Coult not compile");
       }
-    } catch (IOException e) {
-      e.printStackTrace();
-      processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Coult not compile");
-    }
+    });
+    return false;
   }
 
   private void attributeClass(Element classElement) {

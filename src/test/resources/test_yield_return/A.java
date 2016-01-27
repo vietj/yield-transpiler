@@ -1,4 +1,4 @@
-package test_return;
+package test_yield_return;
 
 import synctest.Flow;
 import synctest.GeneratorFunction;
