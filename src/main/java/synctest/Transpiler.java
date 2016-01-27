@@ -121,7 +121,7 @@ public class Transpiler extends TreePathScanner<Object, Object> {
     }
     source.append(") {\n");
 
-    source.append("    class TheGenerator extends synctest.Generator {\n");
+    source.append("    class GeneratorImpl extends synctest.Generator {\n");
 
     for (VariableTree variable : variables) {
       String s = "      private " + variable.getType() + " " + variable.getName() + ";\n";
@@ -192,7 +192,7 @@ public class Transpiler extends TreePathScanner<Object, Object> {
     source.append("      }\n");
     source.append("    }\n");
 
-    source.append("    return new TheGenerator();\n");
+    source.append("    return new GeneratorImpl();\n");
     source.append("  }\n");
 
     //
