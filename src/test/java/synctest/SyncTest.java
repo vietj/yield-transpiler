@@ -76,12 +76,14 @@ public class SyncTest {
       fail();
     }
     URLClassLoader loader = new URLClassLoader(new URL[]{classes.toURI().toURL()}, Thread.currentThread().getContextClassLoader());
+    Class<?> clazz = loader.loadClass(fqn);
+    Object instance = clazz.newInstance();
     Class<?> genClass = loader.loadClass(fqn + "_");
-    Object instance = genClass.newInstance();
+    Object genInstance = genClass.getConstructor(clazz).newInstance(instance);
     return (args) -> {
       try {
         Optional<Method> opt = Stream.of(genClass.getMethods()).filter(m -> m.getName().equals("sync")).findFirst();
-        return (Generator) opt.get().invoke(instance, args);
+        return (Generator) opt.get().invoke(genInstance, args);
       } catch (Exception e) {
         throw new UndeclaredThrowableException(e);
       }

@@ -95,6 +95,10 @@ public class Transpiler extends TreePathScanner<Object, Object> {
     node.getImports().forEach(import_ -> visitImport(import_, null));
     ClassTree decl = (ClassTree) node.getTypeDecls().get(0);
     source.append("public class ").append(decl.getSimpleName()).append("_ {\n");
+    source.append("  private final ").append(decl.getSimpleName()).append(" this_;\n");
+    source.append("  public ").append(decl.getSimpleName()).append("_(").append(decl.getSimpleName()).append(" this_) {\n");
+    source.append("    this.this_ = this_;\n");
+    source.append("}\n");
     return null;
   }
 
