@@ -22,6 +22,7 @@ import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.StatementTree;
 import com.sun.source.tree.ThrowTree;
+import com.sun.source.tree.Tree;
 import com.sun.source.tree.TryTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePathScanner;
@@ -464,7 +465,25 @@ public class Transpiler extends TreePathScanner<Object, Object> {
   public Object visitMethodInvocation(MethodInvocationTree node, Object o) {
     // no support for type arguments
     StringBuilder tmp = new StringBuilder();
-    tmp.append(node.getMethodSelect().accept(this, o));
+    ExpressionTree methodSelect = node.getMethodSelect();
+    if (methodSelect instanceof MemberSelectTree) {
+      MemberSelectTree memberSelect = (MemberSelectTree) methodSelect;
+      tmp.append(memberSelect.getExpression().accept(this, o));
+      tmp.append(".");
+      if (node.getTypeArguments().size() > 0) {
+        tmp.append("<");
+        for (Iterator<? extends Tree> i = node.getTypeArguments().iterator(); i.hasNext();) {
+          tmp.append(i.next().accept(this, o));
+          if (i.hasNext()) {
+            tmp.append(", ");
+          }
+        }
+        tmp.append(">");
+      }
+      tmp.append(memberSelect.getIdentifier());
+    } else {
+      throw new UnsupportedOperationException();
+    }
     tmp.append("(");
     for (Iterator<? extends ExpressionTree> i = node.getArguments().iterator();i.hasNext();) {
       tmp.append(i.next().accept(this, o));
