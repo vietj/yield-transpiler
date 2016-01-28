@@ -122,6 +122,8 @@ public class Transpiler extends TreePathScanner<Object, Object> {
   @Override
   public Object visitMethod(MethodTree node, Object o) {
     variables.clear();
+    frameCounter = 0;
+    frames.clear();
     currentFrame = newFrame();
 
     visitBlock(node.getBody(), o);
