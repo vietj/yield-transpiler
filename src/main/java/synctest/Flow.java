@@ -1,5 +1,7 @@
 package synctest;
 
+import io.vertx.core.Future;
+
 /**
  * Function that modifies the control flow of a program.
  *
@@ -12,6 +14,10 @@ public class Flow {
   }
 
   public static <T> T yield(Object value) {
+    throw new UnsupportedOperationException("Should never be invoked directly");
+  }
+
+  public static <T> T yield(Future<T> value) {
     throw new UnsupportedOperationException("Should never be invoked directly");
   }
 }
