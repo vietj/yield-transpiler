@@ -20,7 +20,7 @@ public class VertxTest {
     Vertx vertx = Vertx.vertx();
     Example1 ex = new Example1(vertx);
     CompletableFuture<Object> a = new CompletableFuture<>();
-    VertxFlow flow = new VertxFlow(vertx);
+    VertxFlow flow = new VertxFlow();
     Generator generator = new Example1_(ex).businessMethod();
     Future<Object> fut = flow.spawn(generator);
     fut.setHandler(ar -> {

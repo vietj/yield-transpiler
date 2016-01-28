@@ -4,7 +4,6 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import synctest.Flow;
 import synctest.GeneratorFunction;
-import vertx.VertxFlow;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
@@ -19,9 +18,9 @@ public class Example1 {
 
   @GeneratorFunction
   public String businessMethod() {
-    String value1 = Flow.yield(VertxFlow.<String>wrap(c -> this.delay("foo", c)));
-    String value2 = Flow.yield(VertxFlow.<String>wrap(c -> this.delay("bar", c)));
-    String value3 = Flow.yield(VertxFlow.<String>wrap(c -> this.delay("juu", c)));
+    String value1 = Flow.yield(VertxFlow.<String>future(c -> this.delay("foo", c)));
+    String value2 = Flow.yield(VertxFlow.<String>future(c -> this.delay("bar", c)));
+    String value3 = Flow.yield(VertxFlow.<String>future(c -> this.delay("juu", c)));
     return value1 + value2 + value3;
   }
 

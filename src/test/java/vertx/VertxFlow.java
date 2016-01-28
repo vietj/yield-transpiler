@@ -1,32 +1,13 @@
 package vertx;
 
-import io.vertx.core.Context;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
 import synctest.Generator;
-
-import java.util.function.Consumer;
 
 /**
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  */
 public class VertxFlow {
-
-  private final Vertx vertx;
-  private final Context context;
-
-  public VertxFlow(Vertx vertx) {
-    this.vertx = vertx;
-    this.context = vertx.getOrCreateContext();
-  }
-
-  static class Bilto {
-    final Handler<Handler<String>> tutu;
-    public Bilto(Handler<Handler<String>> tutu) {
-      this.tutu = tutu;
-    }
-  }
 
   public Future<Object> spawn(Generator generator) {
     return run(generator, null);
@@ -57,14 +38,10 @@ public class VertxFlow {
     }
   }
 
-  public static <T> Future<T> wrap(Handler<Handler<T>> tutu) {
+  public static <T> Future<T> future(Handler<Handler<T>> tutu) {
     Future<T> future = Future.future();
     tutu.handle(future::complete);
     return future;
-  }
-
-  public void async(Consumer<String> callback) {
-    throw new UnsupportedOperationException();
   }
 
 }
