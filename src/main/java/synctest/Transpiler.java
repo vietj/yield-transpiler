@@ -38,7 +38,7 @@ import java.util.Map;
  */
 public class Transpiler extends TreePathScanner<Object, Object> {
 
-  private StringBuilder source = new StringBuilder();
+  private CodeWriter source = new CodeWriter();
   private final List<VariableTree> variables = new ArrayList<>();
   private Map<Integer, Frame> frames = new LinkedHashMap<>();
   private int frameCounter = 0;
@@ -48,11 +48,11 @@ public class Transpiler extends TreePathScanner<Object, Object> {
   private Map<Integer, Map<String, Frame>> catchMapping = new LinkedHashMap<>();
 
   public String getSource() {
-    return source.toString() + "}\n";
+    return source.getBuffer().toString() + "}\n";
   }
 
   private interface Statement {
-    void render(String padding, StringBuilder buffer);
+    void render(CodeWriter writer);
   }
 
   enum Exit {
@@ -75,21 +75,21 @@ public class Transpiler extends TreePathScanner<Object, Object> {
     }
 
     Frame append(String statement) {
-      statements.add((padding, buffer) -> buffer.append(padding).append(statement).append("\n"));
+      statements.add((buffer) -> buffer.append(statement).append("\n"));
       return this;
     }
 
     void append(StatementTree statement) {
-      statements.add((padding, buffer) -> {
+      statements.add((buffer) -> {
         Utils.splitBySep(statement.toString()).forEach(line -> {
-          buffer.append(padding).append(line).append("\n");
+          buffer.append(line).append("\n");
         });
       });
     }
 
-    void render(StringBuilder buffer) {
+    void render(CodeWriter writer) {
       for (Statement statement : statements) {
-        statement.render("              ", buffer);
+        statement.render(writer);
       }
     }
   }
@@ -105,11 +105,11 @@ public class Transpiler extends TreePathScanner<Object, Object> {
     source.append("package ").append(node.getPackageName()).append(";\n");
     node.getImports().forEach(import_ -> visitImport(import_, null));
     ClassTree decl = (ClassTree) node.getTypeDecls().get(0);
-    source.append("public class ").append(decl.getSimpleName()).append("_ {\n");
-    source.append("  private final ").append(decl.getSimpleName()).append(" this_;\n");
-    source.append("  public ").append(decl.getSimpleName()).append("_(").append(decl.getSimpleName()).append(" this_) {\n");
-    source.append("    this.this_ = this_;\n");
-    source.append("}\n");
+    source.append("public class ").append(decl.getSimpleName()).append("_ {\n").indent();
+    source.append("private final ").append(decl.getSimpleName()).append(" this_;\n");
+    source.append("public ").append(decl.getSimpleName()).append("_(").append(decl.getSimpleName()).append(" this_) {\n").indent();
+    source.append("this.this_ = this_;\n");
+    source.unindent().append("}\n");
     return null;
   }
 
@@ -128,7 +128,7 @@ public class Transpiler extends TreePathScanner<Object, Object> {
 
     visitBlock(node.getBody(), o);
 
-    source.append("  public synctest.Generator ").append(node.getName()).append("(");
+    source.append("public synctest.Generator ").append(node.getName()).append("(");
     for (Iterator<? extends VariableTree> i = node.getParameters().iterator();i.hasNext();) {
       VariableTree param = i.next();
       source.append(param.getType()).append(" ").append(param.getName());
@@ -137,83 +137,86 @@ public class Transpiler extends TreePathScanner<Object, Object> {
       }
     }
     source.append(") {\n");
+    source.indent();
 
-    source.append("    class GeneratorImpl extends synctest.Generator {\n");
+    source.append("class GeneratorImpl extends synctest.Generator {\n");
+    source.indent();
 
     for (VariableTree variable : variables) {
-      String s = "      private " + variable.getType() + " " + variable.getName() + ";\n";
+      String s = "private " + variable.getType() + " " + variable.getName() + ";\n";
       source.append(s);
     }
 
-    source.append("      public Object next(synctest.GeneratorContext context) {\n");
+    source.append("public Object next(synctest.GeneratorContext context) {\n").indent();
 
-    source.append("        while(true) {\n");
-    source.append("          try {\n");
-    source.append("            switch(context.status) {\n");
+    source.append("while(true) {\n").indent();
+    source.append("try {\n").indent();
+    source.append("switch(context.status) {\n").indent();
     for (Frame frame : frames.values()) {
-      source.append("              case ").append(frame.id).append(": {\n");
+      source.append("case ").append(frame.id).append(": {\n");
+      source.indent();
       frame.render(source);
       switch (frame.exit) {
         case SUSPEND:
-          source.append("                context.status = ").append(frame.next.id).append(";\n");
+          source.append("context.status = ").append(frame.next.id).append(";\n");
           String out = frame.out != null ? render(frame.out) : "null";
-          source.append("                return ").append(out).append(";\n");
+          source.append("return ").append(out).append(";\n");
           break;
         case CONTINUE:
           if (frame.next != null) {
-            source.append("                context.status = ").append(frame.next.id).append(";\n");
-            source.append("                break;\n");
+            source.append("context.status = ").append(frame.next.id).append(";\n");
+            source.append("break;\n");
           } else {
-            source.append("                context.status = -1;\n");
-            source.append("                return null;\n");
+            source.append("context.status = -1;\n");
+            source.append("return null;\n");
           }
           break;
         case RETURN:
-          source.append("                context.status = -1;\n");
-          source.append("                return ").append(render(frame.exitExpr)).append(";\n");
+          source.append("context.status = -1;\n");
+          source.append("return ").append(render(frame.exitExpr)).append(";\n");
           break;
         case THROW:
-          source.append("                context.status = -1;\n");
-          source.append("                throw ").append(render(frame.exitExpr)).append(";\n");
+          source.append("context.status = -1;\n");
+          source.append("throw ").append(render(frame.exitExpr)).append(";\n");
           break;
       }
-      source.append("              }\n");
+      source.unindent().append("}\n");
     }
-    source.append("            }\n");
-    source.append("          } catch(Throwable t) {\n");
+    source.unindent().append("}\n");
+    source.unindent().append("} catch(Throwable t) {\n");
 
 
-    source.append("            switch (context.status) {\n");
+    source.append("switch (context.status) {\n").indent();
     for (Frame frame : frames.values()) {
       if (frame.tryId > 0) {
-        source.append("              case ").append(frame.id).append(": {\n");
+        source.append("case ").append(frame.id).append(": {\n").indent();
         Map<String, Frame> abc = catchMapping.get(frame.tryId);
         abc.forEach((exception, def) -> {
-          source.append("                if (t instanceof ").append(exception).append(") {\n");
-          source.append("                  context.status = ").append(def.id).append(";\n");
-          source.append("                  continue;\n");
-          source.append("                }\n");
+          source.append("if (t instanceof ").append(exception).append(") {\n");
+          source.append("context.status = ").append(def.id).append(";\n");
+          source.append("continue;\n");
+          source.append("}\n");
         });
-        source.append("                break;\n");
-        source.append("              }\n");
+        source.append("break;\n");
+        source.unindent().append("}\n");
       }
     }
-    source.append("            }\n");
+    source.unindent().append("}\n");
 
     catchMapping.forEach((tryId, entry) -> {
     });
 
-    source.append("            throw t;\n");
-    source.append("          }\n");
-    source.append("        }\n");
-    source.append("      }\n");
-    source.append("    }\n");
+    source.append("throw t;\n");
+    source.append("}\n").unindent();
+    source.append("}\n").unindent();
+    source.append("}\n");
+    source.unindent().append("}\n");
 
-    source.append("    return new GeneratorImpl();\n");
-    source.append("  }\n");
+    source.append("return new GeneratorImpl();\n");
+    source.unindent().append("}\n");
 
     //
-    return source.toString();
+    return source.getBuffer().toString();
   }
 
   @Override
@@ -247,11 +250,11 @@ public class Transpiler extends TreePathScanner<Object, Object> {
       currentFrame = next;
 
       int a = afterIf;
-      current.statements.add(index, (padding, buffer) -> {
-        buffer.append(padding).append("if (!").append(node.getCondition()).append(") {\n");
-        buffer.append(padding).append("  context.status = ").append(a).append(";\n");
-        buffer.append(padding).append("  break;\n");
-        buffer.append(padding).append("};\n");
+      current.statements.add(index, (buffer) -> {
+        buffer.append("if (!").append(node.getCondition()).append(") {\n").indent();
+        buffer.append("context.status = ").append(a).append(";\n");
+        buffer.append("break;\n");
+        buffer.indent().append("};\n");
       });
 
 
@@ -289,11 +292,11 @@ public class Transpiler extends TreePathScanner<Object, Object> {
 
       Frame afterFrame = newFrame();
 
-      current.statements.add(0, (padding, buffer) -> {
-        buffer.append(padding).append("if (!(").append(node.getCondition()).append(")) {\n");
-        buffer.append(padding).append("  context.status = ").append(afterFrame.id).append(";\n");
-        buffer.append(padding).append("  break;\n");
-        buffer.append(padding).append("}\n");
+      current.statements.add(0, (buffer) -> {
+        buffer.append("if (!(").append(node.getCondition()).append(")) {\n").indent();
+        buffer.append("context.status = ").append(afterFrame.id).append(";\n");
+        buffer.append("break;\n");
+        buffer.unindent().append("}\n");
       });
 
       node.getUpdate().forEach(update -> {
@@ -369,8 +372,8 @@ public class Transpiler extends TreePathScanner<Object, Object> {
       MethodInvocationTree methodInvocation = (MethodInvocationTree) variable.getInitializer();
       if (Utils.isYield(methodInvocation)) {
         visitYieldInvocation(methodInvocation);
-        currentFrame.statements.add((padding, buffer) -> {
-          buffer.append(padding).append(variable.getName()).append(" = context.resume();\n");
+        currentFrame.statements.add((buffer) -> {
+          buffer.append(variable.getName()).append(" = context.resume();\n");
         });
         return null;
       }
@@ -397,8 +400,8 @@ public class Transpiler extends TreePathScanner<Object, Object> {
         MethodInvocationTree methodInvocation = (MethodInvocationTree) assignment.getExpression();
         if (Utils.isYield(methodInvocation)) {
           visitYieldInvocation(methodInvocation);
-          currentFrame.statements.add((padding, buffer) -> {
-            buffer.append(padding).append(assignment.getVariable()).append(" = context.resume();\n");
+          currentFrame.statements.add((buffer) -> {
+            buffer.append(assignment.getVariable()).append(" = context.resume();\n");
           });
           return o;
         }
